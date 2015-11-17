@@ -121,7 +121,7 @@ static int od_dir_find8(const int16_t *img, int stride, int32_t *var) {
  (OD_BSIZE_MAX + 2*OD_FILT_BORDER))
 
 /* Smooth in the direction detected. */
-void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
+void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
  int ln, int threshold, int dir) {
   int i;
   int j;
@@ -150,19 +150,19 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, int16_t *in,
   }
 }
 
-void od_filter_dering_direction_4x4_c(int16_t *y, int ystride, int16_t *in,
+void od_filter_dering_direction_4x4_c(int16_t *y, int ystride, const int16_t *in,
  int threshold, int dir) {
   od_filter_dering_direction_c(y, ystride, in, 2, threshold, dir);
 }
 
-void od_filter_dering_direction_8x8_c(int16_t *y, int ystride, int16_t *in,
+void od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,
  int threshold, int dir) {
   od_filter_dering_direction_c(y, ystride, in, 3, threshold, dir);
 }
 
 /* Smooth in the direction orthogonal to what was detected. */
-void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
- int16_t *x, int xstride, int ln, int threshold, int dir) {
+void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
+ const int16_t *x, int xstride, int ln, int threshold, int dir) {
   int i;
   int j;
   int offset;
@@ -199,13 +199,13 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, int16_t *in,
   }
 }
 
-void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride, int16_t *in,
- int16_t *x, int xstride, int threshold, int dir) {
+void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride, const int16_t *in,
+ const int16_t *x, int xstride, int threshold, int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 2, threshold, dir);
 }
 
-void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride, int16_t *in,
- int16_t *x, int xstride, int threshold, int dir) {
+void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride, const int16_t *in,
+ const int16_t *x, int xstride, int threshold, int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 3, threshold, dir);
 }
 
@@ -243,7 +243,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(int16_t *y, int ystride, int16_t *x,
+void od_dering(int16_t *y, int ystride, const int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int pli, unsigned char *bskip, int skip_stride, double gain) {
