@@ -22,10 +22,37 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#if !defined(_dering_H)
-# define _dering_H (1)
+#ifndef VP10_COMMON_OD_DERING_H_
+#define VP10_COMMON_OD_DERING_H_
 
-# include "filter.h"
+#include "vp10/common/enums.h"
+#include "vpx/vpx_integer.h"
+#include "vpx_dsp/vpx_dsp_common.h"
+#include "vpx_ports/bitops.h"
+
+/*Smallest blocks are 4x4*/
+# define OD_LOG_BSIZE0 (2)
+/*There are 5 block sizes total (4x4, 8x8, 16x16, 32x32 and 64x64).*/
+# define OD_NBSIZES    (5)
+/*The log of the maximum length of the side of a block.*/
+# define OD_LOG_BSIZE_MAX (OD_LOG_BSIZE0 + OD_NBSIZES - 1)
+/*The maximum length of the side of a block.*/
+# define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
+
+typedef int od_coeff;
+#define OD_COEFF_SHIFT (0)  // NB: differs from daala
+
+#define OD_DIVU_SMALL(_x, _d) ((_x) / (_d))
+
+#define OD_MINI VPXMIN
+#define OD_CLAMPI(min, val, max) clamp((val), (min), (max))
+
+#  define OD_ILOG_NZ(x) get_msb(x)
+/*Note that __builtin_clz is not defined when x == 0, according to the gcc
+   documentation (and that of the x86 BSR instruction that implements it), so
+   we have to special-case it.
+  We define a special version of the macro to use when x can be zero.*/
+#  define OD_ILOG(x) ((x) ? OD_ILOG_NZ(x) : 0)
 
 #define OD_DERINGSIZES (2)
 
@@ -44,14 +71,7 @@ typedef void (*od_filter_dering_direction_func)(int16_t *y, int ystride,
 typedef void (*od_filter_dering_orthogonal_func)(int16_t *y, int ystride,
  int16_t *in, int16_t *x, int xstride, int threshold, int dir);
 
-struct od_dering_opt_vtbl {
-  od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES];
-  od_filter_dering_orthogonal_func filter_dering_orthogonal[OD_DERINGSIZES];
-};
-typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
-
-
-void od_dering(od_dering_opt_vtbl *vtbl, int16_t *y, int ystride, int16_t *x,
+void od_dering(int16_t *y, int ystride, int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli, unsigned char *bskip,
  int skip_stride, double gain);
@@ -76,4 +96,4 @@ void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride, int16_t *in,
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride, int16_t *in,
  int16_t *x, int xstride, int threshold, int dir);
 
-#endif
+#endif  // VP10_COMMON_OD_DERING_H_

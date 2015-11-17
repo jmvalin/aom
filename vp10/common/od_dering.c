@@ -22,12 +22,9 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
-
+#include <math.h>
 #include <stdlib.h>
-#include "dering.h"
+#include "od_dering.h"
 
 const od_filter_dering_direction_func
  OD_DERING_DIRECTION_C[OD_DERINGSIZES] = {
@@ -246,7 +243,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(od_dering_opt_vtbl *vtbl, int16_t *y, int ystride, int16_t *x,
+void od_dering(int16_t *y, int ystride, int16_t *x,
  int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
  int pli, unsigned char *bskip, int skip_stride, double gain) {
@@ -331,7 +328,7 @@ void od_dering(od_dering_opt_vtbl *vtbl, int16_t *y, int ystride, int16_t *x,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      (vtbl->filter_dering_direction[bsize - OD_LOG_BSIZE0])(
+      (OD_DERING_DIRECTION_C[bsize - OD_LOG_BSIZE0])(
        &y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        thresh[by][bx], dir[by][bx]);
@@ -344,7 +341,7 @@ void od_dering(od_dering_opt_vtbl *vtbl, int16_t *y, int ystride, int16_t *x,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      (vtbl->filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
+      (OD_DERING_ORTHOGONAL_C[bsize - OD_LOG_BSIZE0])(
        &y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        &x[(by*xstride << bsize) + (bx << bsize)], xstride,
