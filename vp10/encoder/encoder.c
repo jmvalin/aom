@@ -15,6 +15,9 @@
 #include "./vpx_config.h"
 
 #include "vp10/common/alloccommon.h"
+#if CONFIG_DERING
+#include "vp10/common/dering.h"
+#endif  // CONFIG_DERING
 #include "vp10/common/filter.h"
 #include "vp10/common/idct.h"
 #include "vp10/common/reconinter.h"
@@ -2425,6 +2428,10 @@ static void loopfilter_frame(VP10_COMP *cpi, VP10_COMMON *cm) {
     else
       vp10_loop_filter_frame(cm->frame_to_show, cm, xd, lf->filter_level, 0, 0);
   }
+
+#if CONFIG_DERING
+  vp10_dering_frame(cm->frame_to_show, cm, xd, VPX_DERING_LEVEL);
+#endif  // CONFIG_DERING
 
   vpx_extend_frame_inner_borders(cm->frame_to_show);
 }
