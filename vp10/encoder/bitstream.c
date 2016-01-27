@@ -19,6 +19,9 @@
 #include "vpx_ports/mem_ops.h"
 #include "vpx_ports/system_state.h"
 
+#if CONFIG_DERING
+#include "vp10/common/dering.h"
+#endif  // CONFIG_DERING
 #include "vp10/common/entropy.h"
 #include "vp10/common/entropymode.h"
 #include "vp10/common/entropymv.h"
@@ -850,6 +853,12 @@ static void encode_loopfilter(struct loopfilter *lf,
   }
 }
 
+#if CONFIG_DERING
+static void encode_dering(int level, struct vpx_write_bit_buffer *wb) {
+  vpx_wb_write_literal(wb, level, DERING_LEVEL_BITS);
+}
+#endif  // CONFIG_DERING
+
 static void write_delta_q(struct vpx_write_bit_buffer *wb, int delta_q) {
   if (delta_q != 0) {
     vpx_wb_write_bit(wb, 1);
@@ -1309,6 +1318,9 @@ static void write_uncompressed_header(VP10_COMP *cpi,
   vpx_wb_write_literal(wb, cm->frame_context_idx, FRAME_CONTEXTS_LOG2);
 
   encode_loopfilter(&cm->lf, wb);
+#if CONFIG_DERING
+  encode_dering(cm->dering_level, wb);
+#endif  // CONFIG_DERING
   encode_quantization(cm, wb);
   encode_segmentation(cm, xd, wb);
 #if CONFIG_MISC_FIXES

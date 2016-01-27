@@ -2430,7 +2430,12 @@ static void loopfilter_frame(VP10_COMP *cpi, VP10_COMMON *cm) {
   }
 
 #if CONFIG_DERING
-  vp10_dering_frame(cm->frame_to_show, cm, xd, VPX_DERING_LEVEL);
+  if (is_lossless_requested(&cpi->oxcf)) {
+    cm->dering_level = 0;
+  } else {
+    cm->dering_level = vp10_try_dering_frame(cm->frame_to_show, &cpi->last_frame_uf, cpi->Source, cm, xd);
+    vp10_dering_frame(cm->frame_to_show, cm, xd, cm->dering_level);
+  }
 #endif  // CONFIG_DERING
 
   vpx_extend_frame_inner_borders(cm->frame_to_show);

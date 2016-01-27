@@ -11,10 +11,17 @@
 extern "C" {
 #endif
 
-#define VPX_DERING_LEVEL 34
+#define DERING_LEVEL_BITS 6
+#define MAX_DERING_LEVEL (1 << DERING_LEVEL_BITS)
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
                        MACROBLOCKD *xd, int level);
+
+int vp10_try_dering_frame(YV12_BUFFER_CONFIG *frame,
+                          YV12_BUFFER_CONFIG *frame_uf,
+                          const YV12_BUFFER_CONFIG *ref,
+                          VP10_COMMON *cm,
+                          MACROBLOCKD *xd);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
