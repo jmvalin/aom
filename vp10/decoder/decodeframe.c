@@ -1098,6 +1098,12 @@ static void setup_loopfilter(struct loopfilter *lf,
   }
 }
 
+#if CONFIG_DERING
+static void setup_dering(VP10_COMMON *cm, struct vpx_read_bit_buffer *rb) {
+  cm->dering_level = vpx_rb_read_literal(rb,  DERING_LEVEL_BITS);
+}
+#endif  // CONFIG_DERING
+
 static INLINE int read_delta_q(struct vpx_read_bit_buffer *rb) {
   return vpx_rb_read_bit(rb)
              ? vpx_rb_read_inv_signed_literal(rb, CONFIG_MISC_FIXES ? 6 : 4)
@@ -1548,8 +1554,8 @@ static const uint8_t *decode_tiles(VP10Decoder *pbi, const uint8_t *data,
     winterface->execute(&pbi->lf_worker);
   }
 #if CONFIG_DERING
-  if (VPX_DERING_LEVEL > 0) {
-    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, VPX_DERING_LEVEL);
+  if (cm->dering_level && !cm->skip_loop_filter) {
+    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
   }
 #endif // CONFIG_DERING
 
@@ -2035,6 +2041,9 @@ static size_t read_uncompressed_header(VP10Decoder *pbi,
     vp10_setup_past_independence(cm);
 
   setup_loopfilter(&cm->lf, rb);
+#if CONFIG_DERING
+  setup_dering(cm, rb);
+#endif
   setup_quantization(cm, rb);
 #if CONFIG_VPX_HIGHBITDEPTH
   xd->bd = (int)cm->bit_depth;
