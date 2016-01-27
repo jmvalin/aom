@@ -14,6 +14,7 @@
 #include "./vp10_rtcd.h"
 #include "./vpx_dsp_rtcd.h"
 #include "./vpx_scale_rtcd.h"
+#include "./vpx_config.h"
 
 #include "vpx_dsp/bitreader_buffer.h"
 #include "vpx_dsp/bitreader.h"
@@ -26,6 +27,9 @@
 
 #include "vp10/common/alloccommon.h"
 #include "vp10/common/common.h"
+#if CONFIG_DERING
+#include "vp10/common/dering.h"
+#endif  // CONFIG_DERING
 #include "vp10/common/entropy.h"
 #include "vp10/common/entropymode.h"
 #include "vp10/common/idct.h"
@@ -1543,6 +1547,11 @@ static const uint8_t *decode_tiles(VP10Decoder *pbi, const uint8_t *data,
     lf_data->stop = cm->mi_rows;
     winterface->execute(&pbi->lf_worker);
   }
+#if CONFIG_DERING
+  if (VPX_DERING_LEVEL > 0) {
+    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, VPX_DERING_LEVEL);
+  }
+#endif // CONFIG_DERING
 
   // Get last tile data.
   tile_data = pbi->tile_data + tile_cols * tile_rows - 1;
