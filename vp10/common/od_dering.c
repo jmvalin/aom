@@ -22,20 +22,17 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
-#include <math.h>
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdlib.h>
-#include "od_dering.h"
+#include <math.h>
+#include "dering.h"
 
-const od_filter_dering_direction_func
- OD_DERING_DIRECTION_C[OD_DERINGSIZES] = {
-  od_filter_dering_direction_4x4_c,
-  od_filter_dering_direction_8x8_c
-};
-
-const od_filter_dering_orthogonal_func
- OD_DERING_ORTHOGONAL_C[OD_DERINGSIZES] = {
-  od_filter_dering_orthogonal_4x4_c,
-  od_filter_dering_orthogonal_8x8_c
+const od_dering_opt_vtbl OD_DERING_VTBL_C = {
+  {od_filter_dering_direction_4x4_c, od_filter_dering_direction_8x8_c},
+  {od_filter_dering_orthogonal_4x4_c, od_filter_dering_orthogonal_8x8_c}
 };
 
 /* Generated from gen_filter_tables.c. */
@@ -129,14 +126,14 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
   static const int taps[3] = {3, 2, 2};
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
-      od_coeff sum;
-      od_coeff xx;
-      od_coeff yy;
+      int16_t sum;
+      int16_t xx;
+      int16_t yy;
       xx = in[i*OD_FILT_BSTRIDE + j];
       sum= 0;
       for (k = 0; k < 3; k++) {
-        od_coeff p0;
-        od_coeff p1;
+        int16_t p0;
+        int16_t p1;
         p0 = in[i*OD_FILT_BSTRIDE + j + OD_DIRECTION_OFFSETS_TABLE[dir][k]]
          - xx;
         p1 = in[i*OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]]
@@ -150,13 +147,13 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
   }
 }
 
-void od_filter_dering_direction_4x4_c(int16_t *y, int ystride, const int16_t *in,
- int threshold, int dir) {
+void od_filter_dering_direction_4x4_c(int16_t *y, int ystride,
+ const int16_t *in, int threshold, int dir) {
   od_filter_dering_direction_c(y, ystride, in, 2, threshold, dir);
 }
 
-void od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,
- int threshold, int dir) {
+void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
+ const int16_t *in, int threshold, int dir) {
   od_filter_dering_direction_c(y, ystride, in, 3, threshold, dir);
 }
 
@@ -170,10 +167,10 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
   else offset = 1;
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
-      od_coeff athresh;
-      od_coeff yy;
-      od_coeff sum;
-      od_coeff p;
+      int16_t athresh;
+      int16_t yy;
+      int16_t sum;
+      int16_t p;
       /* Deringing orthogonal to the direction uses a tighter threshold
          because we want to be conservative. We've presumably already
          achieved some deringing, so the amount of change is expected
@@ -199,13 +196,13 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
   }
 }
 
-void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride, const int16_t *in,
- const int16_t *x, int xstride, int threshold, int dir) {
+void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 2, threshold, dir);
 }
 
-void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride, const int16_t *in,
- const int16_t *x, int xstride, int threshold, int dir) {
+void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 3, threshold, dir);
 }
 
@@ -243,10 +240,10 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
-void od_dering(int16_t *y, int ystride, const int16_t *x,
- int xstride, int ln, int sbx, int sby, int nhsb, int nvsb, int q, int xdec,
- int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
- int pli, unsigned char *bskip, int skip_stride, double gain) {
+void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
+ const int16_t *x, int xstride, int ln, int sbx, int sby, int nhsb, int nvsb,
+ int q, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
+ unsigned char *bskip, int skip_stride, double gain, int overlap) {
   int i;
   int j;
   int n;
@@ -309,10 +306,14 @@ void od_dering(int16_t *y, int ystride, const int16_t *x,
       int xend;
       int yend;
       int skip;
-      xstart = (sbx == 0) ? 0 : -1;
-      ystart = (sby == 0) ? 0 : -1;
-      xend = (2 >> xdec) + (sbx != nhsb - 1);
-      yend = (2 >> xdec) + (sby != nvsb - 1);
+      xstart = ystart = 0;
+      xend = yend = (2 >> xdec);
+      if (overlap) {
+        xstart -= (sbx != 0);
+        ystart -= (sby != 0);
+        xend += (sbx != nhsb - 1);
+        yend += (sby != nvsb - 1);
+      }
       skip = 1;
       /* We look at whether the current block and its 4x4 surrounding (due to
          lapping) are skipped to avoid filtering the same content multiple
@@ -328,7 +329,7 @@ void od_dering(int16_t *y, int ystride, const int16_t *x,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      (OD_DERING_DIRECTION_C[bsize - OD_LOG_BSIZE0])(
+      (vtbl->filter_dering_direction[bsize - OD_LOG_BSIZE0])(
        &y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        thresh[by][bx], dir[by][bx]);
@@ -341,7 +342,7 @@ void od_dering(int16_t *y, int ystride, const int16_t *x,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      (OD_DERING_ORTHOGONAL_C[bsize - OD_LOG_BSIZE0])(
+      (vtbl->filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
        &y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        &x[(by*xstride << bsize) + (bx << bsize)], xstride,
