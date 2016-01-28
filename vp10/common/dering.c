@@ -15,6 +15,7 @@
 #include "vp10/common/dering.h"
 #include "vp10/common/onyxc_int.h"
 #include "vp10/common/reconinter.h"
+#include "od_dering.h"
 
 static void dering_helper_8x8(uint16_t *y, int ystride, const uint16_t *x,
                               int xstride, int has_top, int has_left,
@@ -30,9 +31,9 @@ static void dering_helper_8x8(uint16_t *y, int ystride, const uint16_t *x,
   int skip_stride = 0;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int pli = 0;
-  od_dering((int16_t *)y, ystride, (const int16_t *)x, xstride, ln, sbx, sby,
+  od_dering(&OD_DERING_VTBL_C, (int16_t *)y, ystride, (const int16_t *)x, xstride, ln, sbx, sby,
             nhsb, nvsb, q, xdec, dir, pli, &bskip[1], skip_stride,
-            (double)level);
+            (double)level, OD_DERING_NO_CHECK_OVERLAP);
 }
 
 static void dering_b_8x8(uint8_t *buf, int buf_stride, int has_top,
