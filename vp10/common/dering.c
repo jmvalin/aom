@@ -25,15 +25,14 @@ static void dering_helper_8x8(uint16_t *y, int ystride, const uint16_t *x,
   int sby = has_top;
   int nhsb = has_left + has_right + 1;
   int nvsb = has_top + has_bottom + 1;
-  int q = 1;
   int xdec = 0;
   uint8_t bskip[4] = {0};
   int skip_stride = 0;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int pli = 0;
   od_dering(&OD_DERING_VTBL_C, (int16_t *)y, ystride, (const int16_t *)x, xstride, ln, sbx, sby,
-            nhsb, nvsb, q, xdec, dir, pli, &bskip[1], skip_stride,
-            (double)level, OD_DERING_NO_CHECK_OVERLAP);
+            nhsb, nvsb, xdec, dir, pli, &bskip[1], skip_stride,
+            level, OD_DERING_NO_CHECK_OVERLAP);
 }
 
 static void dering_b_8x8(uint8_t *buf, int buf_stride, int has_top,
