@@ -82,18 +82,60 @@ void vp10_dering_sb(YV12_BUFFER_CONFIG *frame_buffer,
   }
 }
 
+void vp10_dering_sb2(YV12_BUFFER_CONFIG *frame_buffer,
+                    VP10_COMMON *cm, MACROBLOCKD *xd,
+                    MODE_INFO **mi_8x8, int mi_row, int mi_col, int level) {
+  int r, c;
+  int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
+  unsigned char bskip[MI_BLOCK_SIZE][MI_BLOCK_SIZE];
+  DECLARE_ALIGNED(16, int16_t, src[64 * 64]);
+  DECLARE_ALIGNED(16, int16_t, dst[64 * 64]);
+  for (r = 0; r < MI_BLOCK_SIZE; ++r) {
+    for (c = 0; c < MI_BLOCK_SIZE; ++c) {
+      const MB_MODE_INFO *mbmi =
+          &mi_8x8[(mi_row + r) * cm->mi_stride + mi_col + c]->mbmi;
+      bskip[r][c] = mbmi->skip;
+    }
+  }
+  // Setup xd->plane pointers to the current mi
+  vp10_setup_dst_planes(xd->plane, frame_buffer, mi_row, mi_col);
+  for (r = 0; r < 64; ++r) {
+    for (c = 0; c < 64; ++c) {
+      src[r * 64 + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c];
+    }
+  }
+  od_dering(&OD_DERING_VTBL_C, dst, 64, src, 64, 6, 0, 0, 1, 1, 0, dir, 0,
+      &bskip[0][0], MI_BLOCK_SIZE, level, OD_DERING_NO_CHECK_OVERLAP);
+  for (r = 0; r < 64; ++r) {
+    for (c = 0; c < 64; ++c) {
+      xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = dst[r * 64 + c];
+    }
+  }
+}
+
 void vp10_dering_rows(YV12_BUFFER_CONFIG *frame_buffer, VP10_COMMON *cm,
                       MACROBLOCKD *xd, int start, int stop, int level) {
   int mi_row, mi_col;
+#if 0
   for (mi_row = start; mi_row < stop; mi_row += MI_BLOCK_SIZE) {
     for (mi_col = 0; mi_col < cm->mi_cols; mi_col += MI_BLOCK_SIZE) {
       vp10_dering_sb(frame_buffer, cm, xd, cm->mi_grid_visible, mi_row, mi_col,
                      level);
     }
   }
+#else
+  for (mi_row = start; mi_row + 7 < stop; mi_row += MI_BLOCK_SIZE) {
+    for (mi_col = 0; mi_col + 7 < cm->mi_cols; mi_col += MI_BLOCK_SIZE) {
+      vp10_dering_sb2(frame_buffer, cm, xd, cm->mi_grid_visible, mi_row, mi_col,
+                     level);
+    }
+  }
+#endif
 }
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
                        MACROBLOCKD *xd, int level) {
+  vp10_setup_dst_planes(xd->plane, frame, 0, 0);
+
   vp10_dering_rows(frame, cm, xd, 0, cm->mi_rows, level);
 }
