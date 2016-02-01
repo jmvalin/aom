@@ -310,8 +310,8 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
          times. */
       for (i = ystart; i < yend; i++) {
         for (j = xstart; j < xend; j++) {
-          skip = skip && bskip[((by << 1 >> xdec) + i)*skip_stride
-           + (bx << 1 >> xdec) + j];
+          skip = skip && bskip[((by >> xdec) + i)*skip_stride
+           + (bx >> xdec) + j];
         }
       }
       if (skip) thresh[by][bx] = 0;

@@ -135,7 +135,6 @@ void vp10_dering_rows(YV12_BUFFER_CONFIG *frame_buffer, VP10_COMMON *cm,
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
                        MACROBLOCKD *xd, int level) {
-#if 1
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
@@ -155,13 +154,9 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   }
   for (r = 0; r < cm->mi_rows; ++r) {
     for (c = 0; c < cm->mi_cols; ++c) {
-#if 0
       const MB_MODE_INFO *mbmi =
           &cm->mi_grid_visible[r * cm->mi_stride + c]->mbmi;
       bskip[r * cm->mi_cols + c] = mbmi->skip;
-#else
-      bskip[r * cm->mi_cols + c] = 0;
-#endif
     }
   }
   nvsb = cm->mi_rows/8;
@@ -170,7 +165,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
     for (sbc = 0; sbc < nhsb; sbc++) {
       od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*64 + sbc*64, cm->mi_cols*8, src + sbr*stride*64 + sbc*64, cm->mi_cols*8, 6,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
-          bskip, 0, level, OD_DERING_NO_CHECK_OVERLAP);
+          bskip + 8*sbr*cm->mi_cols + 8*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
     }
   }
   for (r = 0; r < 8*cm->mi_rows; ++r) {
@@ -181,7 +176,4 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   free(src);
   free(dst);
   free(bskip);
-#else
-  vp10_dering_rows(frame, cm, xd, 0, cm->mi_rows, level);
-#endif
 }
