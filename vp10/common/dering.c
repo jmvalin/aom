@@ -159,13 +159,14 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
       bskip[r * cm->mi_cols + c] = mbmi->skip;
     }
   }
-  nvsb = cm->mi_rows/8;
-  nhsb = cm->mi_cols/8;
+  nvsb = cm->mi_rows/MI_BLOCK_SIZE;
+  nhsb = cm->mi_cols/MI_BLOCK_SIZE;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
-      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*64 + sbc*64, cm->mi_cols*8, src + sbr*stride*64 + sbc*64, cm->mi_cols*8, 6,
+      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
+          cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
-          bskip + 8*sbr*cm->mi_cols + 8*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
+          bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
     }
   }
   for (r = 0; r < 8*cm->mi_rows; ++r) {
