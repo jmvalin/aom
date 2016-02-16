@@ -30,23 +30,26 @@ static double compute_dist(int16_t *x, int16_t *y,
   return sum;
 }
 
-void vp10_dering_search(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
+void vp10_dering_search(YV12_BUFFER_CONFIG *frame, YV12_BUFFER_CONFIG *ref,
+                       VP10_COMMON *cm,
                        MACROBLOCKD *xd, int *dering_level) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
-  int16_t *src, *dst;
+  int16_t *src, *dst, *ref_coeff;
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
+  ref_coeff = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
       dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c];
+      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c];
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
@@ -70,10 +73,9 @@ void vp10_dering_search(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
             sbc, sbr, nhsb, nvsb, 0, dir, 0,
             bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
         mse = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-                           src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
+                           ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
                            8*MI_BLOCK_SIZE);
         if (mse < best_mse) {
-          printf("mse: %d\n",mse);
           best_mse = mse;
           best_level = level;
         }
@@ -84,6 +86,7 @@ void vp10_dering_search(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   }
   free(src);
   free(dst);
+  free(ref_coeff);
   free(bskip);
 }
 
