@@ -14,10 +14,12 @@ extern "C" {
 #define DERING_LEVEL_BITS 6
 #define MAX_DERING_LEVEL (1 << DERING_LEVEL_BITS)
 
-void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
-                       MACROBLOCKD *xd, int level);
+extern double dering_gains[4];
 
-void vp10_dering_search(YV12_BUFFER_CONFIG *frame, YV12_BUFFER_CONFIG *ref,
+void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
+                       MACROBLOCKD *xd, int global_level, int *dering_level);
+
+int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       VP10_COMMON *cm,
                       MACROBLOCKD *xd, int *dering_level);
 

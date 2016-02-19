@@ -2434,7 +2434,7 @@ static void loopfilter_frame(VP10_COMP *cpi, VP10_COMMON *cm) {
     cm->dering_level = 0;
   } else {
     cm->dering_level = vp10_try_dering_frame(cm->frame_to_show, &cpi->last_frame_uf, cpi->Source, cm, xd);
-    vp10_dering_frame(cm->frame_to_show, cm, xd, cm->dering_level);
+    vp10_dering_frame(cm->frame_to_show, cm, xd, cm->dering_level, NULL);
   }
 #endif  // CONFIG_DERING
 
