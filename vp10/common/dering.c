@@ -17,6 +17,8 @@
 #include "vp10/common/reconinter.h"
 #include "od_dering.h"
 
+double dering_gains[4] = {0, .6, 1, 1.7};
+
 static double compute_dist(int16_t *x, int16_t *y,
  int n) {
   int i;
@@ -30,7 +32,7 @@ static double compute_dist(int16_t *x, int16_t *y,
   return sum;
 }
 
-void vp10_dering_search(YV12_BUFFER_CONFIG *frame, YV12_BUFFER_CONFIG *ref,
+int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                        VP10_COMMON *cm,
                        MACROBLOCKD *xd, int *dering_level) {
   int r, c;
@@ -40,6 +42,11 @@ void vp10_dering_search(YV12_BUFFER_CONFIG *frame, YV12_BUFFER_CONFIG *ref,
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
+  int (*mse)[MAX_DERING_LEVEL];
+  int best_count[MAX_DERING_LEVEL] = {0};
+  int level;
+  int best_level;
+  int level_cdf;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   ref_coeff = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
@@ -61,37 +68,60 @@ void vp10_dering_search(YV12_BUFFER_CONFIG *frame, YV12_BUFFER_CONFIG *ref,
   }
   nvsb = cm->mi_rows/MI_BLOCK_SIZE;
   nhsb = cm->mi_cols/MI_BLOCK_SIZE;
+  mse = malloc(nvsb*nhsb*sizeof(*mse));
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
-      int level = 0;
-      int best_level = 0;
       int best_mse = 1000000000;
+      best_level = 0;
       for (level = 0; level < 64; level++) {
-        int mse;
         od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
             cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
             sbc, sbr, nhsb, nvsb, 0, dir, 0,
             bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
-        mse = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
+        mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
                            ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
                            8*MI_BLOCK_SIZE);
-        if (mse < best_mse) {
-          best_mse = mse;
+        if (mse[nhsb*sbr+sbc][level] < best_mse) {
+          best_mse = mse[nhsb*sbr+sbc][level];
           best_level = level;
         }
       }
-      dering_level[nhsb*sbr+sbc] = best_level;
-      printf("%d\n", best_level);
+      best_count[best_level]++;
+    }
+  }
+  level_cdf = 0;
+  //Find the median of the best level
+  for (level = 0; level < MAX_DERING_LEVEL; level++) {
+    level_cdf += best_count[level];
+    if (level_cdf > nvsb*nhsb/2)
+      break;
+  }
+  best_level = level*1.3;
+  for (sbr = 0; sbr < nvsb; sbr++) {
+    for (sbc = 0; sbc < nhsb; sbc++) {
+      int gi;
+      int best_gi;
+      int best_mse = mse[nhsb*sbr+sbc][0];
+      best_gi = 0;
+      for (gi = 1; gi < 4; gi++) {
+        level = (int)(.5 + best_level * dering_gains[gi]);
+        if (mse[nhsb*sbr+sbc][level] < best_mse) {
+          best_gi = gi;
+          best_mse = mse[nhsb*sbr+sbc][level];
+        }
+      }
+      dering_level[nhsb*sbr+sbc] = best_gi;
     }
   }
   free(src);
   free(dst);
   free(ref_coeff);
   free(bskip);
+  return best_level;
 }
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
-                       MACROBLOCKD *xd, int level) {
+                       MACROBLOCKD *xd, int global_level, int *dering_level) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
@@ -120,6 +150,11 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   nhsb = cm->mi_cols/MI_BLOCK_SIZE;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
+      int level;
+      if (dering_level) {
+        level = (int)(.5 + global_level * dering_gains[dering_level[nhsb*sbr+sbc]]);
+      }
+      else level = global_level;
       od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
           cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,

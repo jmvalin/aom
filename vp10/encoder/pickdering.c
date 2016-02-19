@@ -21,25 +21,14 @@ int vp10_try_dering_frame(YV12_BUFFER_CONFIG *frame,
                           YV12_BUFFER_CONFIG *frame_uf,
                           const YV12_BUFFER_CONFIG *ref, VP10_COMMON *cm,
                           MACROBLOCKD *xd) {
-  int level;
-  int64_t best_error;
-  int best_level = 0;
+  int global_level;
   int *dering_level;
   dering_level = malloc((cm->mi_rows/MI_BLOCK_SIZE)*(cm->mi_cols/MI_BLOCK_SIZE)*sizeof(int));
   vpx_yv12_copy_y(frame, frame_uf);
-  vp10_dering_search(frame, ref, cm, xd, dering_level);
-  best_error = vp10_get_y_sse(ref, frame);
-  for (level = 1; level < MAX_DERING_LEVEL; ++level) {
-    int64_t error;
-    vp10_dering_frame(frame, cm, xd, level);
-    error = vp10_get_y_sse(ref, frame);
-    if (error < best_error) {
-      best_error = error;
-      best_level = level;
-    }
-    // fprintf(stderr, "level %d err %"PRId64"\n", level, err);
-    vpx_yv12_copy_y(frame_uf, frame);
-  }
+  global_level = vp10_dering_search(frame, ref, cm, xd, dering_level);
+  vp10_dering_frame(frame, cm, xd, global_level, dering_level);
+  // fprintf(stderr, "level %d err %"PRId64"\n", level, err);
+  vpx_yv12_copy_y(frame_uf, frame);
   free(dering_level);
-  return best_level;
+  return global_level;
 }
