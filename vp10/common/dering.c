@@ -97,6 +97,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       break;
   }
   best_level = level*1.3;
+  /* Above that, the high adjustment will be beyond 63. */
+  if (best_level > 37) best_level = 37;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int gi;
