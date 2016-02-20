@@ -17,11 +17,11 @@ extern "C" {
 extern double dering_gains[4];
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
-                       MACROBLOCKD *xd, int global_level, int *dering_level);
+                       MACROBLOCKD *xd, int global_level);
 
 int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       VP10_COMMON *cm,
-                      MACROBLOCKD *xd, int *dering_level);
+                      MACROBLOCKD *xd);
 
 int vp10_try_dering_frame(YV12_BUFFER_CONFIG *frame,
                           YV12_BUFFER_CONFIG *frame_uf,

@@ -1555,7 +1555,7 @@ static const uint8_t *decode_tiles(VP10Decoder *pbi, const uint8_t *data,
   }
 #if CONFIG_DERING
   if (cm->dering_level && !cm->skip_loop_filter) {
-    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level, NULL);
+    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
   }
 #endif // CONFIG_DERING
 

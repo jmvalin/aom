@@ -34,7 +34,7 @@ static double compute_dist(int16_t *x, int16_t *y,
 
 int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                        VP10_COMMON *cm,
-                       MACROBLOCKD *xd, int *dering_level) {
+                       MACROBLOCKD *xd) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
@@ -110,7 +110,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           best_mse = mse[nhsb*sbr+sbc][level];
         }
       }
-      dering_level[nhsb*sbr+sbc] = best_gi;
+      //dering_level[nhsb*sbr+sbc] = best_gi;
+      cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain = best_gi;
     }
   }
   free(src);
@@ -121,7 +122,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 }
 
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
-                       MACROBLOCKD *xd, int global_level, int *dering_level) {
+                       MACROBLOCKD *xd, int global_level) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
@@ -151,10 +152,8 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
-      if (dering_level) {
-        level = (int)(.5 + global_level * dering_gains[dering_level[nhsb*sbr+sbc]]);
-      }
-      else level = global_level;
+      level = (int)(.5 + global_level *
+          dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
       od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
           cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
