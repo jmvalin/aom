@@ -17,7 +17,7 @@
 #include "vp10/common/reconinter.h"
 #include "od_dering.h"
 
-double dering_gains[4] = {0, .6, 1, 1.7};
+double dering_gains[4] = {0, .7, 1, 1.4};
 
 static double compute_dist(int16_t *x, int16_t *y,
  int n) {
@@ -29,7 +29,7 @@ static double compute_dist(int16_t *x, int16_t *y,
     tmp = x[i] - y[i];
     sum += tmp*tmp;
   }
-  return sum;
+  return sum/(double)(1<<2*OD_COEFF_SHIFT);
 }
 
 int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
@@ -44,6 +44,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int stride;
   int (*mse)[MAX_DERING_LEVEL];
   int best_count[MAX_DERING_LEVEL] = {0};
+  double tot_mse[MAX_DERING_LEVEL] = {0};
   int level;
   int best_level;
   int level_cdf;
@@ -55,8 +56,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c];
-      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c];
+      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
+      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c] << OD_COEFF_SHIFT;
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
@@ -77,10 +78,11 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
             cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
             sbc, sbr, nhsb, nvsb, 0, dir, 0,
-            bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
+            bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
         mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
                            ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
                            8*MI_BLOCK_SIZE);
+        tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
           best_mse = mse[nhsb*sbr+sbc][level];
           best_level = level;
@@ -90,13 +92,14 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
   }
   level_cdf = 0;
+#if DERING_REFINEMENT
   //Find the median of the best level
   for (level = 0; level < MAX_DERING_LEVEL; level++) {
     level_cdf += best_count[level];
     if (level_cdf > nvsb*nhsb/2)
       break;
   }
-  best_level = level*1.3;
+  best_level = level;
   /* Above that, the high adjustment will be beyond 63. */
   if (best_level > 37) best_level = 37;
   for (sbr = 0; sbr < nvsb; sbr++) {
@@ -116,6 +119,12 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain = best_gi;
     }
   }
+#else
+  best_level = 0;
+  for (level = 0; level < MAX_DERING_LEVEL; level++) {
+    if (tot_mse[level] < tot_mse[best_level]) best_level = level;
+  }
+#endif
   free(src);
   free(dst);
   free(ref_coeff);
@@ -139,7 +148,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c];
+      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
@@ -154,18 +163,21 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
-      //printf("(%d) ", cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain);
+#if DERING_REFINEMENT
       level = (int)(.5 + global_level *
           dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
+#else
+      level = global_level;
+#endif
       od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
           cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, 6,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
-          bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level, OD_DERING_NO_CHECK_OVERLAP);
+          bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
     }
   }
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = dst[r * stride + c];
+      xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = (dst[r * stride + c] + (1<<OD_COEFF_SHIFT>>1)) >> OD_COEFF_SHIFT;
     }
   }
   free(src);

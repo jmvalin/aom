@@ -969,10 +969,12 @@ static void decode_partition(VP10Decoder *const pbi, MACROBLOCKD *const xd,
       (bsize == BLOCK_8X8 || partition != PARTITION_SPLIT))
     dec_update_partition_context(xd, mi_row, mi_col, subsize, num_8x8_wh);
 
+#if DERING_REFINEMENT
   if (bsize == BLOCK_64X64) {
     cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain = vpx_read_literal(r, 2);
     printf("%d ", cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain);
   }
+#endif
 }
 
 static void setup_token_decoder(const uint8_t *data, const uint8_t *data_end,
