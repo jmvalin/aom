@@ -26,7 +26,7 @@ int vp10_try_dering_frame(YV12_BUFFER_CONFIG *frame,
   dering_level = malloc((cm->mi_rows/MI_BLOCK_SIZE)*(cm->mi_cols/MI_BLOCK_SIZE)*sizeof(int));
   vpx_yv12_copy_y(frame, frame_uf);
   global_level = vp10_dering_search(frame, ref, cm, xd);
-  vp10_dering_frame(frame, cm, xd, global_level);
+  //vp10_dering_frame(frame, cm, xd, global_level);
   // fprintf(stderr, "level %d err %"PRId64"\n", level, err);
   vpx_yv12_copy_y(frame_uf, frame);
   free(dering_level);

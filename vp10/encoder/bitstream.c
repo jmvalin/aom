@@ -614,6 +614,11 @@ static void write_modes_sb(VP10_COMP *cpi, const TileInfo *const tile,
   if (bsize >= BLOCK_8X8 &&
       (bsize == BLOCK_8X8 || partition != PARTITION_SPLIT))
     update_partition_context(xd, mi_row, mi_col, subsize, bsize);
+
+  if (bsize == BLOCK_64X64) {
+    vpx_write_literal(w, cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain, 2);
+    //printf("%d ", cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain);
+  }
 }
 
 static void write_modes(VP10_COMP *cpi, const TileInfo *const tile,
