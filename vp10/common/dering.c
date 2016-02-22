@@ -20,12 +20,12 @@
 double dering_gains[4] = {0, .7, 1, 1.4};
 
 static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
- int n) {
+ int nvb, int nhb) {
   int i, j;
   double sum;
   sum = 0;
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
+  for (i = 0; i < nvb << 3; i++) {
+    for (j = 0; j < nhb << 3; j++) {
       double tmp;
       tmp = x[i*xstride + j] - y[i*ystride + j];
       sum += tmp*tmp;
@@ -69,21 +69,25 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       bskip[r * cm->mi_cols + c] = mbmi->skip;
     }
   }
-  nvsb = cm->mi_rows/MI_BLOCK_SIZE;
-  nhsb = cm->mi_cols/MI_BLOCK_SIZE;
+  nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
+  nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   mse = malloc(nvsb*nhsb*sizeof(*mse));
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int best_mse = 1000000000;
+      int nvb, nhb;
       best_level = 0;
+      nhb = nvb = MI_BLOCK_SIZE;
+      if (MI_BLOCK_SIZE*(sbc + 1) > cm->mi_cols) nhb = cm->mi_cols - MI_BLOCK_SIZE*sbc;
+      if (MI_BLOCK_SIZE*(sbr + 1) > cm->mi_rows) nvb = cm->mi_rows - MI_BLOCK_SIZE*sbr;
       for (level = 0; level < 64; level++) {
         od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-            cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, MI_BLOCK_SIZE, MI_BLOCK_SIZE,
+            cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, nhb, nvb,
             sbc, sbr, nhsb, nvsb, 0, dir, 0,
             bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
         mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
                            ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
-                           8*MI_BLOCK_SIZE);
+                           nhb, nvb);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
           best_mse = mse[nhsb*sbr+sbc][level];
@@ -143,8 +147,8 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
-  nvsb = cm->mi_rows/MI_BLOCK_SIZE;
-  nhsb = cm->mi_cols/MI_BLOCK_SIZE;
+  nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
+  nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
@@ -165,6 +169,10 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
+      int nhb, nvb;
+      nhb = nvb = MI_BLOCK_SIZE;
+      if (MI_BLOCK_SIZE*(sbc + 1) > cm->mi_cols) nhb = cm->mi_cols - MI_BLOCK_SIZE*sbc;
+      if (MI_BLOCK_SIZE*(sbr + 1) > cm->mi_rows) nvb = cm->mi_rows - MI_BLOCK_SIZE*sbr;
 #if DERING_REFINEMENT
       level = (int)(.5 + global_level *
           dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
@@ -172,7 +180,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
       level = global_level;
 #endif
       od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-          cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, MI_BLOCK_SIZE, MI_BLOCK_SIZE,
+          cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, nhb, nvb,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
           bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
     }
