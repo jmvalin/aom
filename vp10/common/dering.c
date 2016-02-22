@@ -19,15 +19,17 @@
 
 double dering_gains[4] = {0, .7, 1, 1.4};
 
-static double compute_dist(int16_t *x, int16_t *y,
+static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
  int n) {
-  int i;
+  int i, j;
   double sum;
   sum = 0;
-  for (i = 0; i < n*n; i++) {
-    double tmp;
-    tmp = x[i] - y[i];
-    sum += tmp*tmp;
+  for (i = 0; i < n; i++) {
+    for (j = 0; j < n; j++) {
+      double tmp;
+      tmp = x[i*xstride + j] - y[i*ystride + j];
+      sum += tmp*tmp;
+    }
   }
   return sum/(double)(1<<2*OD_COEFF_SHIFT);
 }
@@ -79,8 +81,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
             cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, MI_BLOCK_SIZE, MI_BLOCK_SIZE,
             sbc, sbr, nhsb, nvsb, 0, dir, 0,
             bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
-        mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-                           ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
+        mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
+                           ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
                            8*MI_BLOCK_SIZE);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
