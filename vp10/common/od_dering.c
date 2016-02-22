@@ -292,7 +292,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       int yend;
       int skip;
       xstart = ystart = 0;
-      xend = yend = (2 >> xdec);
+      xend = yend = (1 >> xdec);
       if (overlap) {
         xstart -= (sbx != 0);
         ystart -= (sby != 0);
