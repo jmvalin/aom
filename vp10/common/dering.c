@@ -59,7 +59,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
+      src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
       ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c] << OD_COEFF_SHIFT;
     }
   }
@@ -169,7 +169,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      dst[r * stride + c] = src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
+      src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
