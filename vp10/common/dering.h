@@ -16,7 +16,7 @@ extern "C" {
 
 #define DERING_REFINEMENT 1
 
-extern double dering_gains[4];
+int compute_level_from_index(int global_level, int gi);
 int sb_all_skip(const VP10_COMMON *const cm, int mi_row, int mi_col);
 void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
                        MACROBLOCKD *xd, int global_level);

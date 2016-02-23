@@ -98,8 +98,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
 #if DERING_REFINEMENT
   best_level = 0;
-  /* Search for the best global level one value at a time up to 37.
-     Above that, the high adjustment will be beyond 63. */
+  /* Search for the best global level one value at a time. */
   for (global_level = 2; global_level <= 37; global_level++) {
     double tot_mse=0;
     for (sbr = 0; sbr < nvsb; sbr++) {
@@ -107,7 +106,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         int gi;
         int best_mse = mse[nhsb*sbr+sbc][0];
         for (gi = 1; gi < 4; gi++) {
-          level = (int)(.5 + global_level * dering_gains[gi]);
+          level = compute_level_from_index(global_level, gi);
           if (mse[nhsb*sbr+sbc][level] < best_mse) {
             best_mse = mse[nhsb*sbr+sbc][level];
           }
@@ -127,7 +126,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       int best_mse = mse[nhsb*sbr+sbc][0];
       best_gi = 0;
       for (gi = 1; gi < 4; gi++) {
-        level = (int)(.5 + best_level * dering_gains[gi]);
+        level = compute_level_from_index(best_level, gi);
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
           best_gi = gi;
           best_mse = mse[nhsb*sbr+sbc][level];
