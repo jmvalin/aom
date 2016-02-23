@@ -19,6 +19,22 @@
 
 double dering_gains[4] = {0, .7, 1, 1.4};
 
+int sb_all_skip(const VP10_COMMON *const cm, int mi_row, int mi_col) {
+  int r, c;
+  int maxc, maxr;
+  int skip = 1;
+  maxc = cm->mi_cols - mi_col;
+  maxr = cm->mi_rows - mi_row;
+  if (maxr > MI_BLOCK_SIZE) maxr = MI_BLOCK_SIZE;
+  if (maxc > MI_BLOCK_SIZE) maxc = MI_BLOCK_SIZE;
+  for (r = 0; r < maxr; r++) {
+    for (c = 0; c < maxc; c++) {
+      skip = skip && cm->mi_grid_visible[(mi_row + r) * cm->mi_stride + mi_col + c]->mbmi.skip;
+    }
+  }
+  return skip;
+}
+
 static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
  int nhb, int nvb) {
   int i, j;
@@ -204,6 +220,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
 #endif
         /* FIXME: This is a temporary hack that uses more conservative deringing for chroma. */
         if (pli) level = level*2/3;
+        if (sb_all_skip(cm, sbr*MI_BLOCK_SIZE, sbc*MI_BLOCK_SIZE)) level = 0;
         od_dering(&OD_DERING_VTBL_C, dst[pli] + sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE,
             stride, src[pli] + sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE, stride, nhb, nvb,
             sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
