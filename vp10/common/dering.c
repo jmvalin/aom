@@ -20,7 +20,7 @@
 double dering_gains[4] = {0, .7, 1, 1.4};
 
 static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
- int nvb, int nhb) {
+ int nhb, int nvb) {
   int i, j;
   double sum;
   sum = 0;
