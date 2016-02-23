@@ -160,17 +160,22 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
-  int bsize;
+  int bsize[3];
+  int dec[3];
+  int pli;
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
-  bsize = 8;
-  stride = bsize*cm->mi_cols;
-  for (r = 0; r < bsize*cm->mi_rows; ++r) {
-    for (c = 0; c < bsize*cm->mi_cols; ++c) {
+  for (pli = 0; pli < 3; pli++) {
+    dec[pli] = xd->plane[pli].subsampling_x;
+    bsize[pli] = 8 >> dec[pli];
+  }
+  stride = bsize[0]*cm->mi_cols;
+  for (r = 0; r < bsize[0]*cm->mi_rows; ++r) {
+    for (c = 0; c < bsize[0]*cm->mi_cols; ++c) {
       src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
     }
   }
@@ -194,14 +199,14 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
 #else
       level = global_level;
 #endif
-      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*bsize*MI_BLOCK_SIZE + sbc*bsize*MI_BLOCK_SIZE,
-          stride, src + sbr*stride*bsize*MI_BLOCK_SIZE + sbc*bsize*MI_BLOCK_SIZE, stride, nhb, nvb,
+      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE,
+          stride, src + sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE, stride, nhb, nvb,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
           bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
     }
   }
-  for (r = 0; r < bsize*cm->mi_rows; ++r) {
-    for (c = 0; c < bsize*cm->mi_cols; ++c) {
+  for (r = 0; r < bsize[0]*cm->mi_rows; ++r) {
+    for (c = 0; c < bsize[0]*cm->mi_cols; ++c) {
       xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = (dst[r * stride + c] + (1<<OD_COEFF_SHIFT>>1)) >> OD_COEFF_SHIFT;
     }
   }
