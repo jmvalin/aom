@@ -49,7 +49,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   double tot_mse[MAX_DERING_LEVEL] = {0};
   int level;
   int best_level;
-  int level_cdf;
+  int global_level;
+  double best_tot_mse = 1e15;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   ref_coeff = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
@@ -97,17 +98,30 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       best_count[best_level]++;
     }
   }
-  level_cdf = 0;
 #if DERING_REFINEMENT
-  //Find the median of the best level
-  for (level = 0; level < MAX_DERING_LEVEL; level++) {
-    level_cdf += best_count[level];
-    if (level_cdf > nvsb*nhsb/2)
-      break;
+  best_level = 0;
+  /* Search for the best global level one value at a time up to 37.
+     Above that, the high adjustment will be beyond 63. */
+  for (global_level = 2; global_level <= 37; global_level++) {
+    double tot_mse=0;
+    for (sbr = 0; sbr < nvsb; sbr++) {
+      for (sbc = 0; sbc < nhsb; sbc++) {
+        int gi;
+        int best_mse = mse[nhsb*sbr+sbc][0];
+        for (gi = 1; gi < 4; gi++) {
+          level = (int)(.5 + global_level * dering_gains[gi]);
+          if (mse[nhsb*sbr+sbc][level] < best_mse) {
+            best_mse = mse[nhsb*sbr+sbc][level];
+          }
+        }
+        tot_mse += best_mse;
+      }
+    }
+    if (tot_mse < best_tot_mse) {
+      best_level = global_level;
+      best_tot_mse = tot_mse;
+    }
   }
-  best_level = level;
-  /* Above that, the high adjustment will be beyond 63. */
-  if (best_level > 37) best_level = 37;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int gi;
@@ -121,7 +135,6 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           best_mse = mse[nhsb*sbr+sbc][level];
         }
       }
-      //dering_level[nhsb*sbr+sbc] = best_gi;
       cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain = best_gi;
     }
   }
