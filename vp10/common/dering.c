@@ -16,8 +16,15 @@
 #include "vp10/common/onyxc_int.h"
 #include "vp10/common/reconinter.h"
 #include "od_dering.h"
+#include <math.h>
 
-double dering_gains[4] = {0, .7, 1, 1.4};
+
+int compute_level_from_index(int global_level, int gi) {
+  static const double dering_gains[4] = {0, .7, 1, 1.4};
+  int level;
+  level = (int)floor(.5 + global_level*dering_gains[gi]);
+  return clamp(level, gi, MAX_DERING_LEVEL-1);
+}
 
 int sb_all_skip(const VP10_COMMON *const cm, int mi_row, int mi_col) {
   int r, c;
@@ -81,8 +88,9 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
       if (MI_BLOCK_SIZE*(sbr + 1) > cm->mi_rows) nvb = cm->mi_rows - MI_BLOCK_SIZE*sbr;
       for (pli = 0; pli < 3; pli++) {
 #if DERING_REFINEMENT
-        level = (int)(.5 + global_level *
-            dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
+        level = compute_level_from_index(
+            global_level,
+            cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain);
 #else
         level = global_level;
 #endif
