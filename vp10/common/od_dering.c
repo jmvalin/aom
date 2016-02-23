@@ -292,7 +292,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       int yend;
       int skip;
       xstart = ystart = 0;
-      xend = yend = (1 >> xdec);
+      xend = yend = 1;
       if (overlap) {
         xstart -= (sbx != 0);
         ystart -= (sby != 0);
@@ -305,8 +305,8 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
          times. */
       for (i = ystart; i < yend; i++) {
         for (j = xstart; j < xend; j++) {
-          skip = skip && bskip[((by >> xdec) + i)*skip_stride
-           + (bx >> xdec) + j];
+          skip = skip && bskip[(by + i)*skip_stride
+           + bx + j];
         }
       }
       if (skip) thresh[by][bx] = 0;

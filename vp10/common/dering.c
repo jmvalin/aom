@@ -160,15 +160,17 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
+  int bsize;
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
-  stride = 8*cm->mi_cols;
-  for (r = 0; r < 8*cm->mi_rows; ++r) {
-    for (c = 0; c < 8*cm->mi_cols; ++c) {
+  bsize = 8;
+  stride = bsize*cm->mi_cols;
+  for (r = 0; r < bsize*cm->mi_rows; ++r) {
+    for (c = 0; c < bsize*cm->mi_cols; ++c) {
       src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
     }
   }
@@ -192,14 +194,14 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
 #else
       level = global_level;
 #endif
-      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-          cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, nhb, nvb,
+      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*bsize*MI_BLOCK_SIZE + sbc*bsize*MI_BLOCK_SIZE,
+          stride, src + sbr*stride*bsize*MI_BLOCK_SIZE + sbc*bsize*MI_BLOCK_SIZE, stride, nhb, nvb,
           sbc, sbr, nhsb, nvsb, 0, dir, 0,
           bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
     }
   }
-  for (r = 0; r < 8*cm->mi_rows; ++r) {
-    for (c = 0; c < 8*cm->mi_cols; ++c) {
+  for (r = 0; r < bsize*cm->mi_rows; ++r) {
+    for (c = 0; c < bsize*cm->mi_cols; ++c) {
       xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = (dst[r * stride + c] + (1<<OD_COEFF_SHIFT>>1)) >> OD_COEFF_SHIFT;
     }
   }
