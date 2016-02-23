@@ -156,7 +156,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
-  int16_t *src[3], *dst;
+  int16_t *src[3], *dst[3];
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
@@ -165,7 +165,6 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   int pli;
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
-  dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
   bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
   for (pli = 0; pli < 3; pli++) {
@@ -175,6 +174,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   stride = bsize[0]*cm->mi_cols;
   for (pli = 0; pli < 3; pli++) {
     src[pli] = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
+    dst[pli] = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
     for (r = 0; r < bsize[pli]*cm->mi_rows; ++r) {
       for (c = 0; c < bsize[pli]*cm->mi_cols; ++c) {
         src[pli][r * stride + c] = xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c] << OD_COEFF_SHIFT;
@@ -195,26 +195,32 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
       nhb = nvb = MI_BLOCK_SIZE;
       if (MI_BLOCK_SIZE*(sbc + 1) > cm->mi_cols) nhb = cm->mi_cols - MI_BLOCK_SIZE*sbc;
       if (MI_BLOCK_SIZE*(sbr + 1) > cm->mi_rows) nvb = cm->mi_rows - MI_BLOCK_SIZE*sbr;
+      for (pli = 0; pli < 3; pli++) {
 #if DERING_REFINEMENT
-      level = (int)(.5 + global_level *
-          dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
+        level = (int)(.5 + global_level *
+            dering_gains[cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain]);
 #else
-      level = global_level;
+        level = global_level;
 #endif
-      od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE,
-          stride, src[0] + sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE, stride, nhb, nvb,
-          sbc, sbr, nhsb, nvsb, 0, dir, 0,
-          bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
+        /* FIXME: This is a temporary hack that uses more conservative deringing for chroma. */
+        if (pli) level = level*2/3;
+        od_dering(&OD_DERING_VTBL_C, dst[pli] + sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE,
+            stride, src[pli] + sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE, stride, nhb, nvb,
+            sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
+            bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
+      }
     }
   }
-  for (r = 0; r < bsize[0]*cm->mi_rows; ++r) {
-    for (c = 0; c < bsize[0]*cm->mi_cols; ++c) {
-      xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] = (dst[r * stride + c] + (1<<OD_COEFF_SHIFT>>1)) >> OD_COEFF_SHIFT;
+  for (pli = 0; pli < 3; pli++) {
+    for (r = 0; r < bsize[pli]*cm->mi_rows; ++r) {
+      for (c = 0; c < bsize[pli]*cm->mi_cols; ++c) {
+        xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c] = (dst[pli][r * stride + c] + (1<<OD_COEFF_SHIFT>>1)) >> OD_COEFF_SHIFT;
+      }
     }
   }
   for (pli = 0; pli < 3; pli++) {
     free(src[pli]);
+    free(dst[pli]);
   }
-  free(dst);
   free(bskip);
 }
