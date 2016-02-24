@@ -604,12 +604,11 @@ static void write_modes_sb(VP10_COMP *cpi, const TileInfo *const tile,
     update_partition_context(xd, mi_row, mi_col, subsize, bsize);
 
 #if DERING_REFINEMENT
-  if (bsize == BLOCK_64X64) {
-    if (!sb_all_skip(cm, mi_row, mi_col))
-    {
-      vpx_write_literal(w, cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain, 2);
-    }
-    //printf("%d ", cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain);
+  if (bsize == BLOCK_64X64 && cm->dering_level != 0 &&
+      !sb_all_skip(cm, mi_row, mi_col)) {
+    vpx_write_literal(
+        w, cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain,
+        2);
   }
 #endif
 }
