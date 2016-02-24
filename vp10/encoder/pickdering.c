@@ -57,8 +57,10 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
     for (c = 0; c < 8*cm->mi_cols; ++c) {
-      src[r * stride + c] = xd->plane[0].dst.buf[r * xd->plane[0].dst.stride + c] << OD_COEFF_SHIFT;
-      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c] << OD_COEFF_SHIFT;
+      src[r * stride + c] = xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c]
+          << OD_COEFF_SHIFT;
+      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c]
+          << OD_COEFF_SHIFT;
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
@@ -76,17 +78,21 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       int best_mse = 1000000000;
       int nvb, nhb;
       best_level = 0;
-      nhb = nvb = MI_BLOCK_SIZE;
-      if (MI_BLOCK_SIZE*(sbc + 1) > cm->mi_cols) nhb = cm->mi_cols - MI_BLOCK_SIZE*sbc;
-      if (MI_BLOCK_SIZE*(sbr + 1) > cm->mi_rows) nvb = cm->mi_rows - MI_BLOCK_SIZE*sbr;
+      nhb = VPXMIN(MI_BLOCK_SIZE, cm->mi_cols - MI_BLOCK_SIZE*sbc);
+      nvb = VPXMIN(MI_BLOCK_SIZE, cm->mi_rows - MI_BLOCK_SIZE*sbr);
       for (level = 0; level < 64; level++) {
-        od_dering(&OD_DERING_VTBL_C, dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE,
-            cm->mi_cols*8, src + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, cm->mi_cols*8, nhb, nvb,
-            sbc, sbr, nhsb, nvsb, 0, dir, 0,
-            bskip + MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc, cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
-        mse[nhsb*sbr+sbc][level] = compute_dist(dst + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
-                           ref_coeff + sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE, stride,
-                           nhb, nvb);
+        od_dering(
+            &OD_DERING_VTBL_C,
+            &dst[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
+            cm->mi_cols*8,
+            &src[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
+            cm->mi_cols*8, nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
+            &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
+            cm->mi_cols, level << OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
+        mse[nhsb*sbr+sbc][level] = compute_dist(
+            &dst[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE], stride,
+            &ref_coeff[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
+            stride, nhb, nvb);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
           best_mse = mse[nhsb*sbr+sbc][level];
@@ -99,7 +105,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 #if DERING_REFINEMENT
   best_level = 0;
   /* Search for the best global level one value at a time. */
-  for (global_level = 2; global_level <= 37; global_level++) {
+  for (global_level = 2; global_level < MAX_DERING_LEVEL; global_level++) {
     double tot_mse=0;
     for (sbr = 0; sbr < nvsb; sbr++) {
       for (sbc = 0; sbc < nhsb; sbc++) {
@@ -132,7 +138,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           best_mse = mse[nhsb*sbr+sbc][level];
         }
       }
-      cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain = best_gi;
+      cm->mi_grid_visible[MI_BLOCK_SIZE*sbr*cm->mi_stride + MI_BLOCK_SIZE*sbc]->mbmi.dering_gain =
+          best_gi;
     }
   }
 #else
