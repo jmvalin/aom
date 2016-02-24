@@ -39,7 +39,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int sbr, sbc;
   int nhsb, nvsb;
   dering_in *src;
-  int16_t *dst, *ref_coeff;
+  int16_t *ref_coeff;
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
@@ -51,8 +51,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int global_level;
   double best_tot_mse = 1e15;
   src = vpx_malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
-  dst = vpx_malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
-  ref_coeff = vpx_malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
+  ref_coeff = vpx_malloc(sizeof(*ref_coeff)*cm->mi_rows*cm->mi_cols*64);
   bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
   stride = 8*cm->mi_cols;
@@ -78,20 +77,21 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     for (sbc = 0; sbc < nhsb; sbc++) {
       int best_mse = 1000000000;
       int nvb, nhb;
+      int16_t dst[MI_BLOCK_SIZE*MI_BLOCK_SIZE*8*8];
       best_level = 0;
       nhb = VPXMIN(MI_BLOCK_SIZE, cm->mi_cols - MI_BLOCK_SIZE*sbc);
       nvb = VPXMIN(MI_BLOCK_SIZE, cm->mi_rows - MI_BLOCK_SIZE*sbr);
       for (level = 0; level < 64; level++) {
         od_dering(
             &OD_DERING_VTBL_C,
-            &dst[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
-            cm->mi_cols*8,
+            dst,
+            MI_BLOCK_SIZE*8,
             &src[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
             cm->mi_cols*8, nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
             cm->mi_cols, level << OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
         mse[nhsb*sbr+sbc][level] = compute_dist(
-            &dst[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE], stride,
+            dst, MI_BLOCK_SIZE*8,
             &ref_coeff[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
             stride, nhb, nvb);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
@@ -150,7 +150,6 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
 #endif
   vpx_free(src);
-  vpx_free(dst);
   vpx_free(ref_coeff);
   vpx_free(bskip);
   vpx_free(mse);
