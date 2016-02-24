@@ -241,8 +241,8 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 }
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
- const int16_t *x, int xstride, int nhb, int nvb, int sbx, int sby, int nhsb, int nvsb,
- int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
+ const int16_t *x, int xstride, int nhb, int nvb, int sbx, int sby, int nhsb,
+ int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
  unsigned char *bskip, int skip_stride, int threshold, int overlap) {
   int i;
   int j;
@@ -286,13 +286,14 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
+      int skip;
+# if defined(DAALA_ODINTRIN)
       int xstart;
       int ystart;
       int xend;
       int yend;
-      int skip;
       xstart = ystart = 0;
-      xend = yend = 1;
+      xend = yend = (2 >> xdec);
       if (overlap) {
         xstart -= (sbx != 0);
         ystart -= (sby != 0);
@@ -305,10 +306,13 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
          times. */
       for (i = ystart; i < yend; i++) {
         for (j = xstart; j < xend; j++) {
-          skip = skip && bskip[(by + i)*skip_stride
-           + bx + j];
+          skip = skip && bskip[((by << 1 >> xdec) + i)*skip_stride
+           + (bx << 1 >> xdec) + j];
         }
       }
+#else
+      skip = bskip[by*skip_stride + bx];
+#endif
       if (skip) thresh[by][bx] = 0;
     }
   }
