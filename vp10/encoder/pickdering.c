@@ -70,7 +70,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
-  mse = malloc(nvsb*nhsb*sizeof(*mse));
+  mse = vpx_malloc(nvsb*nhsb*sizeof(*mse));
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int best_mse = 1000000000;
@@ -145,5 +145,6 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   vpx_free(dst);
   vpx_free(ref_coeff);
   vpx_free(bskip);
+  vpx_free(mse);
   return best_level;
 }
