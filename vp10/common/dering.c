@@ -69,9 +69,18 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
     src[pli] = vpx_malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
     for (r = 0; r < bsize[pli]*cm->mi_rows; ++r) {
       for (c = 0; c < bsize[pli]*cm->mi_cols; ++c) {
-        src[pli][r * stride + c] =
-            xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c] <<
-            OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+        if (cm->use_highbitdepth) {
+          src[pli][r * stride + c] =
+              CONVERT_TO_SHORTPTR(xd->plane[pli].dst.buf)[r * xd->plane[pli].dst.stride + c];
+        } else {
+#endif
+          src[pli][r * stride + c] =
+              xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c] <<
+              OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+        }
+#endif
       }
     }
   }
@@ -90,6 +99,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
       nvb = VPXMIN(MI_BLOCK_SIZE, cm->mi_rows - MI_BLOCK_SIZE*sbr);
       for (pli = 0; pli < 3; pli++) {
         int16_t dst[MI_BLOCK_SIZE*MI_BLOCK_SIZE*8*8];
+        int threshold;
 #if DERING_REFINEMENT
         level = compute_level_from_index(
             global_level,
@@ -101,6 +111,19 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
            deringing for chroma. */
         if (pli) level = level*2/3;
         if (sb_all_skip(cm, sbr*MI_BLOCK_SIZE, sbc*MI_BLOCK_SIZE)) level = 0;
+        threshold = level << OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+        switch(cm->bit_depth) {
+          case VPX_BITS_8:
+            break;
+          case VPX_BITS_10:
+            threshold <<= 2;
+            break;
+          case VPX_BITS_12:
+            threshold <<= 4;
+            break;
+        }
+#endif
         od_dering(
             &OD_DERING_VTBL_C,
             dst,
@@ -108,12 +131,21 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
             &src[pli][sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE],
             stride, nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
-            cm->mi_cols, level<<OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
+            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP);
         for (r = 0; r < bsize[pli]*nvb; ++r) {
           for (c = 0; c < bsize[pli]*nhb; ++c) {
-            xd->plane[pli].dst.buf[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
-                (dst[r * MI_BLOCK_SIZE * bsize[pli] + c] + (1<<OD_COEFF_SHIFT>>1)) >>
-                OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+            if (cm->use_highbitdepth) {
+              CONVERT_TO_SHORTPTR(xd->plane[pli].dst.buf)[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
+                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c] + (1<<OD_COEFF_SHIFT>>1));
+            } else {
+#endif
+              xd->plane[pli].dst.buf[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
+                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c] + (1<<OD_COEFF_SHIFT>>1)) >>
+                  OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+            }
+#endif
           }
         }
       }

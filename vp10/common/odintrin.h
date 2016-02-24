@@ -15,11 +15,7 @@
 typedef int od_coeff;
 #define OD_COEFF_SHIFT (0)  // NB: differs from daala
 
-#if OD_COEFF_SHIFT == 0
-typedef uint8_t dering_in;
-#else
 typedef int16_t dering_in;
-#endif
 
 #define OD_DIVU_SMALL(_x, _d) ((_x) / (_d))
 

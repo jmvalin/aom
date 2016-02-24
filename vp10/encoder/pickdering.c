@@ -64,10 +64,21 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   stride = bsize[0]*cm->mi_cols;
   for (r = 0; r < bsize[0]*cm->mi_rows; ++r) {
     for (c = 0; c < bsize[0]*cm->mi_cols; ++c) {
-      src[r * stride + c] = xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c]
-          << OD_COEFF_SHIFT;
-      ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c]
-          << OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+      if (cm->use_highbitdepth) {
+        src[r * stride + c] = CONVERT_TO_SHORTPTR(xd->plane[0].dst.buf)[r*xd->plane[0].dst.stride + c]
+            << OD_COEFF_SHIFT;
+        ref_coeff[r * stride + c] = CONVERT_TO_SHORTPTR(ref->y_buffer)[r * ref->y_stride + c]
+            << OD_COEFF_SHIFT;
+      } else {
+#endif
+        src[r * stride + c] = xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c]
+            << OD_COEFF_SHIFT;
+        ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c]
+            << OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+      }
+#endif
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
@@ -89,6 +100,20 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       nhb = VPXMIN(MI_BLOCK_SIZE, cm->mi_cols - MI_BLOCK_SIZE*sbc);
       nvb = VPXMIN(MI_BLOCK_SIZE, cm->mi_rows - MI_BLOCK_SIZE*sbr);
       for (level = 0; level < 64; level++) {
+        int threshold;
+        threshold = level << OD_COEFF_SHIFT;
+#if CONFIG_VPX_HIGHBITDEPTH
+        switch(cm->bit_depth) {
+          case VPX_BITS_8:
+            break;
+          case VPX_BITS_10:
+            threshold <<= 2;
+            break;
+          case VPX_BITS_12:
+            threshold <<= 4;
+            break;
+        }
+#endif
         od_dering(
             &OD_DERING_VTBL_C,
             dst,
@@ -96,7 +121,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
             &src[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
             cm->mi_cols*bsize[0], nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
-            cm->mi_cols, level << OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
+            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP);
         mse[nhsb*sbr+sbc][level] = compute_dist(
             dst, MI_BLOCK_SIZE*bsize[0],
             &ref_coeff[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
