@@ -38,7 +38,8 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
-  int16_t *src, *dst, *ref_coeff;
+  dering_in *src;
+  int16_t *dst, *ref_coeff;
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
