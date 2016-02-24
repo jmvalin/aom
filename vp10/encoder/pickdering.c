@@ -43,6 +43,9 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = {{0}};
   int stride;
+  int bsize[3];
+  int dec[3];
+  int pli;
   int (*mse)[MAX_DERING_LEVEL];
   int best_count[MAX_DERING_LEVEL] = {0};
   double tot_mse[MAX_DERING_LEVEL] = {0};
@@ -54,9 +57,13 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   ref_coeff = vpx_malloc(sizeof(*ref_coeff)*cm->mi_rows*cm->mi_cols*64);
   bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
-  stride = 8*cm->mi_cols;
-  for (r = 0; r < 8*cm->mi_rows; ++r) {
-    for (c = 0; c < 8*cm->mi_cols; ++c) {
+  for (pli = 0; pli < 3; pli++) {
+    dec[pli] = xd->plane[pli].subsampling_x;
+    bsize[pli] = 8 >> dec[pli];
+  }
+  stride = bsize[0]*cm->mi_cols;
+  for (r = 0; r < bsize[0]*cm->mi_rows; ++r) {
+    for (c = 0; c < bsize[0]*cm->mi_cols; ++c) {
       src[r * stride + c] = xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c]
           << OD_COEFF_SHIFT;
       ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c]
@@ -85,14 +92,14 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         od_dering(
             &OD_DERING_VTBL_C,
             dst,
-            MI_BLOCK_SIZE*8,
-            &src[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
-            cm->mi_cols*8, nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
+            MI_BLOCK_SIZE*bsize[0],
+            &src[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
+            cm->mi_cols*bsize[0], nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
             cm->mi_cols, level << OD_COEFF_SHIFT, OD_DERING_NO_CHECK_OVERLAP);
         mse[nhsb*sbr+sbc][level] = compute_dist(
-            dst, MI_BLOCK_SIZE*8,
-            &ref_coeff[sbr*stride*8*MI_BLOCK_SIZE + sbc*8*MI_BLOCK_SIZE],
+            dst, MI_BLOCK_SIZE*bsize[0],
+            &ref_coeff[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
             stride, nhb, nvb);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
