@@ -49,10 +49,10 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int best_level;
   int global_level;
   double best_tot_mse = 1e15;
-  src = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
-  dst = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
-  ref_coeff = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
-  bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
+  src = vpx_malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
+  dst = vpx_malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
+  ref_coeff = vpx_malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
+  bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
   stride = 8*cm->mi_cols;
   for (r = 0; r < 8*cm->mi_rows; ++r) {
@@ -141,9 +141,9 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     if (tot_mse[level] < tot_mse[best_level]) best_level = level;
   }
 #endif
-  free(src);
-  free(dst);
-  free(ref_coeff);
-  free(bskip);
+  vpx_free(src);
+  vpx_free(dst);
+  vpx_free(ref_coeff);
+  vpx_free(bskip);
   return best_level;
 }

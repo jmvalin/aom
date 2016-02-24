@@ -57,7 +57,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   int pli;
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
-  bskip = malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
+  bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
   vp10_setup_dst_planes(xd->plane, frame, 0, 0);
   for (pli = 0; pli < 3; pli++) {
     dec[pli] = xd->plane[pli].subsampling_x;
@@ -65,8 +65,8 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   }
   stride = bsize[0]*cm->mi_cols;
   for (pli = 0; pli < 3; pli++) {
-    src[pli] = malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
-    dst[pli] = malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
+    src[pli] = vpx_malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
+    dst[pli] = vpx_malloc(sizeof(*dst)*cm->mi_rows*cm->mi_cols*64);
     for (r = 0; r < bsize[pli]*cm->mi_rows; ++r) {
       for (c = 0; c < bsize[pli]*cm->mi_cols; ++c) {
         src[pli][r * stride + c] =
@@ -121,8 +121,8 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
     }
   }
   for (pli = 0; pli < 3; pli++) {
-    free(src[pli]);
-    free(dst[pli]);
+    vpx_free(src[pli]);
+    vpx_free(dst[pli]);
   }
-  free(bskip);
+  vpx_free(bskip);
 }
