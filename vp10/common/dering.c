@@ -22,6 +22,7 @@
 int compute_level_from_index(int global_level, int gi) {
   static const double dering_gains[4] = {0, .7, 1, 1.4};
   int level;
+  if (global_level == 0) return 0;
   level = (int)floor(.5 + global_level*dering_gains[gi]);
   return clamp(level, gi, MAX_DERING_LEVEL-1);
 }
