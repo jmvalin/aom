@@ -14,6 +14,7 @@
 #include "./vp10_rtcd.h"
 #include "./vpx_dsp_rtcd.h"
 #include "./vpx_scale_rtcd.h"
+#include "./vpx_config.h"
 
 #include "vpx_dsp/bitreader_buffer.h"
 #include "vpx_dsp/bitreader.h"
@@ -26,6 +27,9 @@
 
 #include "vp10/common/alloccommon.h"
 #include "vp10/common/common.h"
+#if CONFIG_DERING
+#include "vp10/common/dering.h"
+#endif  // CONFIG_DERING
 #include "vp10/common/entropy.h"
 #include "vp10/common/entropymode.h"
 #include "vp10/common/idct.h"
@@ -964,6 +968,19 @@ static void decode_partition(VP10Decoder *const pbi, MACROBLOCKD *const xd,
   if (bsize >= BLOCK_8X8 &&
       (bsize == BLOCK_8X8 || partition != PARTITION_SPLIT))
     dec_update_partition_context(xd, mi_row, mi_col, subsize, num_8x8_wh);
+
+#if DERING_REFINEMENT
+  if (bsize == BLOCK_64X64) {
+    if (cm->dering_level != 0 && !sb_all_skip(cm, mi_row, mi_col))
+    {
+      cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain =
+          vpx_read_literal(r, 2);
+    }
+    else {
+      cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain = 0;
+    }
+  }
+#endif
 }
 
 static void setup_token_decoder(const uint8_t *data, const uint8_t *data_end,
@@ -1093,6 +1110,12 @@ static void setup_loopfilter(struct loopfilter *lf,
     }
   }
 }
+
+#if CONFIG_DERING
+static void setup_dering(VP10_COMMON *cm, struct vpx_read_bit_buffer *rb) {
+  cm->dering_level = vpx_rb_read_literal(rb,  DERING_LEVEL_BITS);
+}
+#endif  // CONFIG_DERING
 
 static INLINE int read_delta_q(struct vpx_read_bit_buffer *rb) {
   return vpx_rb_read_bit(rb)
@@ -1543,6 +1566,11 @@ static const uint8_t *decode_tiles(VP10Decoder *pbi, const uint8_t *data,
     lf_data->stop = cm->mi_rows;
     winterface->execute(&pbi->lf_worker);
   }
+#if CONFIG_DERING
+  if (cm->dering_level && !cm->skip_loop_filter) {
+    vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
+  }
+#endif // CONFIG_DERING
 
   // Get last tile data.
   tile_data = pbi->tile_data + tile_cols * tile_rows - 1;
@@ -2026,6 +2054,9 @@ static size_t read_uncompressed_header(VP10Decoder *pbi,
     vp10_setup_past_independence(cm);
 
   setup_loopfilter(&cm->lf, rb);
+#if CONFIG_DERING
+  setup_dering(cm, rb);
+#endif
   setup_quantization(cm, rb);
 #if CONFIG_VPX_HIGHBITDEPTH
   xd->bd = (int)cm->bit_depth;
