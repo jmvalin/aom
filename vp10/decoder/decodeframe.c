@@ -971,12 +971,10 @@ static void decode_partition(VP10Decoder *const pbi, MACROBLOCKD *const xd,
 
 #if DERING_REFINEMENT
   if (bsize == BLOCK_64X64) {
-    if (cm->dering_level != 0 && !sb_all_skip(cm, mi_row, mi_col))
-    {
+    if (cm->dering_level != 0 && !sb_all_skip(cm, mi_row, mi_col)) {
       cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain =
           vpx_read_literal(r, 2);
-    }
-    else {
+    } else {
       cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain = 0;
     }
   }
@@ -1570,7 +1568,7 @@ static const uint8_t *decode_tiles(VP10Decoder *pbi, const uint8_t *data,
   if (cm->dering_level && !cm->skip_loop_filter) {
     vp10_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
   }
-#endif // CONFIG_DERING
+#endif  // CONFIG_DERING
 
   // Get last tile data.
   tile_data = pbi->tile_data + tile_cols * tile_rows - 1;

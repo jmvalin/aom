@@ -9,6 +9,7 @@
  */
 
 #include <string.h>
+#include <math.h>
 
 #include "./vpx_scale_rtcd.h"
 #include "vpx/vpx_integer.h"
@@ -16,7 +17,6 @@
 #include "vp10/common/onyxc_int.h"
 #include "vp10/common/reconinter.h"
 #include "od_dering.h"
-#include <math.h>
 
 
 int compute_level_from_index(int global_level, int gi) {
@@ -38,7 +38,7 @@ int sb_all_skip(const VP10_COMMON *const cm, int mi_row, int mi_col) {
   for (r = 0; r < maxr; r++) {
     for (c = 0; c < maxc; c++) {
       skip = skip &&
-          cm->mi_grid_visible[(mi_row + r) * cm->mi_stride + mi_col + c]->mbmi.skip;
+          cm->mi_grid_visible[(mi_row + r)*cm->mi_stride + mi_col + c]->mbmi.skip;
     }
   }
   return skip;
@@ -113,7 +113,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
         if (sb_all_skip(cm, sbr*MI_BLOCK_SIZE, sbc*MI_BLOCK_SIZE)) level = 0;
         threshold = level << OD_COEFF_SHIFT;
 #if CONFIG_VPX_HIGHBITDEPTH
-        switch(cm->bit_depth) {
+        switch (cm->bit_depth) {
           case VPX_BITS_8:
             break;
           case VPX_BITS_10:
@@ -137,12 +137,12 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
 #if CONFIG_VPX_HIGHBITDEPTH
             if (cm->use_highbitdepth) {
               CONVERT_TO_SHORTPTR(xd->plane[pli].dst.buf)[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
-                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c] + (1<<OD_COEFF_SHIFT>>1));
+                  dst[r * MI_BLOCK_SIZE * bsize[pli] + c];
             } else {
 #endif
               xd->plane[pli].dst.buf[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
-                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c] + (1<<OD_COEFF_SHIFT>>1)) >>
-                  OD_COEFF_SHIFT;
+                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c]
+                  + (1 << OD_COEFF_SHIFT >> 1)) >> OD_COEFF_SHIFT;
 #if CONFIG_VPX_HIGHBITDEPTH
             }
 #endif

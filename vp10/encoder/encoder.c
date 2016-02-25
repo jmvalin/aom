@@ -2433,7 +2433,8 @@ static void loopfilter_frame(VP10_COMP *cpi, VP10_COMMON *cm) {
   if (is_lossless_requested(&cpi->oxcf)) {
     cm->dering_level = 0;
   } else {
-    cm->dering_level = vp10_dering_search(cm->frame_to_show, cpi->Source, cm, xd);
+    cm->dering_level = vp10_dering_search(cm->frame_to_show, cpi->Source, cm,
+                                          xd);
     vp10_dering_frame(cm->frame_to_show, cm, xd, cm->dering_level);
   }
 #endif  // CONFIG_DERING
