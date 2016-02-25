@@ -102,18 +102,6 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       for (level = 0; level < 64; level++) {
         int threshold;
         threshold = level << coeff_shift;
-#if CONFIG_VPX_HIGHBITDEPTH
-        switch (cm->bit_depth) {
-          case VPX_BITS_8:
-            break;
-          case VPX_BITS_10:
-            threshold <<= 2;
-            break;
-          case VPX_BITS_12:
-            threshold <<= 4;
-            break;
-        }
-#endif
         od_dering(
             &OD_DERING_VTBL_C,
             dst,
