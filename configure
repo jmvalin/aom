@@ -250,6 +250,7 @@ EXPERIMENT_LIST="
     fp_mb_stats
     emulate_hardware
     misc_fixes
+    dering
 "
 CONFIG_LIST="
     dependency_tracking
