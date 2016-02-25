@@ -56,6 +56,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
   int bsize[3];
   int dec[3];
   int pli;
+  int coeff_shift = VPXMAX(cm->bit_depth - 8, 0);
   nvsb = (cm->mi_rows + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   nhsb = (cm->mi_cols + MI_BLOCK_SIZE - 1)/MI_BLOCK_SIZE;
   bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
@@ -76,8 +77,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
         } else {
 #endif
           src[pli][r * stride + c] =
-              xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c] <<
-              OD_COEFF_SHIFT;
+              xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c];
 #if CONFIG_VPX_HIGHBITDEPTH
         }
 #endif
@@ -111,7 +111,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
            deringing for chroma. */
         if (pli) level = level*2/3;
         if (sb_all_skip(cm, sbr*MI_BLOCK_SIZE, sbc*MI_BLOCK_SIZE)) level = 0;
-        threshold = level << OD_COEFF_SHIFT;
+        threshold = level << coeff_shift;
 #if CONFIG_VPX_HIGHBITDEPTH
         switch (cm->bit_depth) {
           case VPX_BITS_8:
@@ -131,7 +131,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
             &src[pli][sbr*stride*bsize[pli]*MI_BLOCK_SIZE + sbc*bsize[pli]*MI_BLOCK_SIZE],
             stride, nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
-            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP);
+            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP, coeff_shift);
         for (r = 0; r < bsize[pli]*nvb; ++r) {
           for (c = 0; c < bsize[pli]*nhb; ++c) {
 #if CONFIG_VPX_HIGHBITDEPTH
@@ -141,8 +141,7 @@ void vp10_dering_frame(YV12_BUFFER_CONFIG *frame, VP10_COMMON *cm,
             } else {
 #endif
               xd->plane[pli].dst.buf[xd->plane[pli].dst.stride*(bsize[pli]*MI_BLOCK_SIZE*sbr + r) + sbc*bsize[pli]*MI_BLOCK_SIZE + c] =
-                  (dst[r * MI_BLOCK_SIZE * bsize[pli] + c]
-                  + (1 << OD_COEFF_SHIFT >> 1)) >> OD_COEFF_SHIFT;
+                  dst[r * MI_BLOCK_SIZE * bsize[pli] + c];
 #if CONFIG_VPX_HIGHBITDEPTH
             }
 #endif

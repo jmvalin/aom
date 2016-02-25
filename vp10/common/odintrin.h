@@ -13,7 +13,6 @@
 # define OD_BSIZE_MAX     (1 << OD_LOG_BSIZE_MAX)
 
 typedef int od_coeff;
-#define OD_COEFF_SHIFT (0)  // NB: differs from daala
 
 typedef int16_t dering_in;
 

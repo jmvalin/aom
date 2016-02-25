@@ -58,7 +58,8 @@ const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = {
    in a particular direction. Since each direction have the same sum(x^2) term,
    that term is never computed. See Section 2, step 2, of:
    http://jmvalin.ca/notes/intra_paint.pdf */
-static int od_dir_find8(const dering_in *img, int stride, int32_t *var) {
+static int od_dir_find8(const dering_in *img, int stride, int32_t *var,
+    int coeff_shift) {
   int i;
   int cost[8] = {0};
   int partial[8][15] = {{0}};
@@ -68,7 +69,7 @@ static int od_dir_find8(const dering_in *img, int stride, int32_t *var) {
     int j;
     for (j = 0; j < 8; j++) {
       int x;
-      x = img[i*stride + j] >> OD_COEFF_SHIFT;
+      x = img[i*stride + j] >> coeff_shift;
       partial[0][i + j] += x;
       partial[1][i + j/2] += x;
       partial[2][i] += x;
@@ -243,7 +244,8 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
  const dering_in *x, int xstride, int nhb, int nvb, int sbx, int sby, int nhsb,
  int nvsb, int xdec, int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
- unsigned char *bskip, int skip_stride, int threshold, int overlap) {
+ unsigned char *bskip, int skip_stride, int threshold, int overlap,
+ int coeff_shift) {
   int i;
   int j;
   int bx;
@@ -271,7 +273,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
         dir[by][bx] = od_dir_find8(&x[8*by*xstride + 8*bx], xstride,
-         &var[by][bx]);
+         &var[by][bx], coeff_shift);
         varsum += var[by][bx];
       }
     }

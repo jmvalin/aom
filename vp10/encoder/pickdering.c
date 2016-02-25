@@ -18,7 +18,7 @@
 #include "vpx/vpx_integer.h"
 
 static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
-    int nhb, int nvb) {
+    int nhb, int nvb, int coeff_shift) {
   int i, j;
   double sum;
   sum = 0;
@@ -29,7 +29,7 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
       sum += tmp*tmp;
     }
   }
-  return sum/(double)(1<<2*OD_COEFF_SHIFT);
+  return sum/(double)(1 << 2*coeff_shift);
 }
 
 int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
@@ -53,6 +53,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int best_level;
   int global_level;
   double best_tot_mse = 1e15;
+  int coeff_shift = VPXMAX(cm->bit_depth - 8, 0);
   src = vpx_malloc(sizeof(*src)*cm->mi_rows*cm->mi_cols*64);
   ref_coeff = vpx_malloc(sizeof(*ref_coeff)*cm->mi_rows*cm->mi_cols*64);
   bskip = vpx_malloc(sizeof(*bskip)*cm->mi_rows*cm->mi_cols);
@@ -67,17 +68,14 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 #if CONFIG_VPX_HIGHBITDEPTH
       if (cm->use_highbitdepth) {
         src[r * stride + c] =
-            CONVERT_TO_SHORTPTR(xd->plane[0].dst.buf)[r*xd->plane[0].dst.stride + c]
-            << OD_COEFF_SHIFT;
+            CONVERT_TO_SHORTPTR(xd->plane[0].dst.buf)[r*xd->plane[0].dst.stride + c];
         ref_coeff[r * stride + c] =
-            CONVERT_TO_SHORTPTR(ref->y_buffer)[r * ref->y_stride + c]
-            << OD_COEFF_SHIFT;
+            CONVERT_TO_SHORTPTR(ref->y_buffer)[r * ref->y_stride + c];
       } else {
 #endif
-        src[r * stride + c] = xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c]
-            << OD_COEFF_SHIFT;
-        ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c]
-            << OD_COEFF_SHIFT;
+        src[r * stride + c] =
+            xd->plane[0].dst.buf[r*xd->plane[0].dst.stride + c];
+        ref_coeff[r * stride + c] = ref->y_buffer[r * ref->y_stride + c];
 #if CONFIG_VPX_HIGHBITDEPTH
       }
 #endif
@@ -103,7 +101,7 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       nvb = VPXMIN(MI_BLOCK_SIZE, cm->mi_rows - MI_BLOCK_SIZE*sbr);
       for (level = 0; level < 64; level++) {
         int threshold;
-        threshold = level << OD_COEFF_SHIFT;
+        threshold = level << coeff_shift;
 #if CONFIG_VPX_HIGHBITDEPTH
         switch (cm->bit_depth) {
           case VPX_BITS_8:
@@ -123,11 +121,11 @@ int vp10_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
             &src[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
             cm->mi_cols*bsize[0], nhb, nvb, sbc, sbr, nhsb, nvsb, 0, dir, 0,
             &bskip[MI_BLOCK_SIZE*sbr*cm->mi_cols + MI_BLOCK_SIZE*sbc],
-            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP);
+            cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP, coeff_shift);
         mse[nhsb*sbr+sbc][level] = compute_dist(
             dst, MI_BLOCK_SIZE*bsize[0],
             &ref_coeff[sbr*stride*bsize[0]*MI_BLOCK_SIZE + sbc*bsize[0]*MI_BLOCK_SIZE],
-            stride, nhb, nvb);
+            stride, nhb, nvb, coeff_shift);
         tot_mse[level] += mse[nhsb*sbr+sbc][level];
         if (mse[nhsb*sbr+sbc][level] < best_mse) {
           best_mse = mse[nhsb*sbr+sbc][level];
