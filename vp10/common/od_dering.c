@@ -168,7 +168,6 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
   else offset = 1;
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
-      int16_t athresh;
       int16_t yy;
       int16_t sum;
       int16_t p;
@@ -180,18 +179,16 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
          to be a little bit more aggressive on pure horizontal/vertical
          since the ringing there tends to be directional, so it doesn't
          get removed by the directional filtering. */
-      athresh = OD_MINI(threshold, threshold/3
-       + abs(in[i*OD_FILT_BSTRIDE + j] - x[i*xstride + j]));
       yy = in[i*OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i*OD_FILT_BSTRIDE + j + offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < threshold) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < threshold) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j + 2*offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < threshold) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - 2*offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < threshold) sum += p;
       y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
     }
   }
@@ -337,7 +334,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
        &y[(by*ystride << bsize) + (bx << bsize)], ystride,
        &in[(by*OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
        &x[(by*xstride << bsize) + (bx << bsize)], xstride,
-       thresh[by][bx], dir[by][bx]);
+       thresh[by][bx]/2, dir[by][bx]);
     }
   }
 }
