@@ -233,7 +233,9 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
       /* We use the variance of 8x8 blocks to determine the threshold. */
       v1 = OD_MINI(32767, var[by][bx] >> 6);
       thresh[by][bx] = threshold*OD_THRESH_TABLE_Q8[OD_CLAMPI(0,
-       OD_ILOG(v1*v1) - 9, 17)] >> 8;
+       OD_ILOG(v1) - 1, 17)] >> 8;
+      v1 = OD_CLAMPI(0, OD_ILOG(v1*v1) - 9, 17);
+      thresh[by][bx] = threshold*(128+v1*v1/2 + 2*v1) >> 8;
     }
   }
 }
