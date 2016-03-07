@@ -26,4 +26,4 @@ typedef int16_t dering_in;
  *    documentation (and that of the x86 BSR instruction that implements it), so
  *       we have to special-case it.
  *         We define a special version of the macro to use when x can be zero.*/
-#  define OD_ILOG(x) ((x) ? OD_ILOG_NZ(x) : 0)
+#  define OD_ILOG(x) ((x) ? OD_ILOG_NZ(x) + 1 : 0)
