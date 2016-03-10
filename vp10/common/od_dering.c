@@ -61,15 +61,16 @@ const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = {
 static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
     int coeff_shift) {
   int i;
-  int cost[8] = {0};
+  int32_t cost[8] = {0};
   int partial[8][15] = {{0}};
-  int best_cost = 0;
+  int32_t best_cost = 0;
   int best_dir = 0;
+  static const int div_table[] = {0, 840, 420, 280, 210, 168, 140, 120, 105};
   for (i = 0; i < 8; i++) {
     int j;
     for (j = 0; j < 8; j++) {
       int x;
-      x = img[i*stride + j] >> coeff_shift;
+      x = (img[i*stride + j] >> coeff_shift) - 128;
       partial[0][i + j] += x;
       partial[1][i + j/2] += x;
       partial[2][i] += x;
@@ -81,25 +82,25 @@ static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
     }
   }
   for (i = 0; i < 8; i++) {
-    cost[2] += partial[2][i]*partial[2][i] >> 3;
-    cost[6] += partial[6][i]*partial[6][i] >> 3;
+    cost[2] += partial[2][i]*partial[2][i]*div_table[8];
+    cost[6] += partial[6][i]*partial[6][i]*div_table[8];
   }
   for (i = 0; i < 7; i++) {
-    cost[0] += OD_DIVU_SMALL(partial[0][i]*partial[0][i], i + 1)
-     + OD_DIVU_SMALL(partial[0][14 - i]*partial[0][14 - i], i + 1);
-    cost[4] += OD_DIVU_SMALL(partial[4][i]*partial[4][i], i + 1)
-     + OD_DIVU_SMALL(partial[4][14 - i]*partial[4][14 - i], i + 1);
+    cost[0] += (partial[0][i]*partial[0][i]
+     + partial[0][14 - i]*partial[0][14 - i])*div_table[i + 1];
+    cost[4] += (partial[4][i]*partial[4][i]
+     + partial[4][14 - i]*partial[4][14 - i])*div_table[i + 1];
   }
-  cost[0] += partial[0][7]*partial[0][8 - 1] >> 3;
-  cost[4] += partial[4][7]*partial[4][8 - 1] >> 3;
+  cost[0] += partial[0][7]*partial[0][7]*div_table[8];
+  cost[4] += partial[4][7]*partial[4][7]*div_table[8];
   for (i = 1; i < 8; i += 2) {
     int j;
     for (j = 0; j < 4 + 1; j++) {
-      cost[i] += partial[i][3 + j]*partial[i][3 + j] >> 3;
+      cost[i] += partial[i][3 + j]*partial[i][3 + j]*div_table[8];
     }
     for (j = 0; j < 4 - 1; j++) {
-      cost[i] += OD_DIVU_SMALL(partial[i][j]*partial[i][j], 2*j + 2)
-       + OD_DIVU_SMALL(partial[i][10 - j]*partial[i][10 - j], 2*j + 2);
+      cost[i] += (partial[i][j]*partial[i][j]
+       + partial[i][10 - j]*partial[i][10 - j])*div_table[2*j + 2];
     }
   }
   for (i = 0; i < 8; i++) {
@@ -110,7 +111,7 @@ static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
   }
   /* Difference between the optimal variance and the variance along the
      orthogonal direction. Again, the sum(x^2) terms cancel out. */
-  *var = best_cost - cost[(best_dir + 4) & 7];
+  *var = (best_cost - cost[(best_dir + 4) & 7])/840;
   return best_dir;
 }
 
