@@ -65,6 +65,9 @@ static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
   int partial[8][15] = {{0}};
   int32_t best_cost = 0;
   int best_dir = 0;
+  /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
+     The output is then 840 times larger, but we don't care for finding
+     the max. */
   static const int div_table[] = {0, 840, 420, 280, 210, 168, 140, 120, 105};
   for (i = 0; i < 8; i++) {
     int j;
@@ -111,7 +114,10 @@ static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
   }
   /* Difference between the optimal variance and the variance along the
      orthogonal direction. Again, the sum(x^2) terms cancel out. */
-  *var = (best_cost - cost[(best_dir + 4) & 7])/840;
+  *var = best_cost - cost[(best_dir + 4) & 7];
+  /* We'd normally divide by 840, but divinding by 1024 is close enough
+     for what we're going to do with this. */
+  *var >>= 10;
   return best_dir;
 }
 
