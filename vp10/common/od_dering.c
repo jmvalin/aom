@@ -151,8 +151,8 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
          - xx;
         p1 = in[i*OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]]
          - xx;
-        if (abs(p0) < threshold) sum += taps[k]*p0;
-        if (abs(p1) < threshold) sum += taps[k]*p1;
+        if (abs(p0) < threshold*(3-k)/2) sum += taps[k]*p0;
+        if (abs(p1) < threshold*(3-k)/2) sum += taps[k]*p1;
       }
       yy = xx + ((sum + 8) >> 4);
       y[i*ystride + j] = yy;
@@ -197,13 +197,13 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
       yy = in[i*OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i*OD_FILT_BSTRIDE + j + offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < 5*athresh/4) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < 5*athresh/4) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j + 2*offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < 3*athresh/4) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - 2*offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < 3*athresh/4) sum += p;
       y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
     }
   }
