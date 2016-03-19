@@ -204,7 +204,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
       if (abs(p) < athresh) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - 2*offset] - yy;
       if (abs(p) < athresh) sum += p;
-      y[i*ystride + j] = yy + OD_CLAMPI(-athresh/4, ((3*sum + 8) >> 4), athresh/4);
+      y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
     }
   }
 }
