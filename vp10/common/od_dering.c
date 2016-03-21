@@ -154,7 +154,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
         if (abs(p0) < threshold*(3-k)/2) sum += taps[k]*p0;
         if (abs(p1) < threshold*(3-k)/2) sum += taps[k]*p1;
       }
-      yy = xx + ((sum + 8) >> 4);
+      yy = xx + OD_CLAMPI(-threshold/4, ((sum + 8) >> 4), threshold/4);
       y[i*ystride + j] = yy;
     }
   }
@@ -204,7 +204,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
       if (abs(p) < 3*athresh/4) sum += p;
       p = in[i*OD_FILT_BSTRIDE + j - 2*offset] - yy;
       if (abs(p) < 3*athresh/4) sum += p;
-      y[i*ystride + j] = yy + ((3*sum + 8) >> 4);
+      y[i*ystride + j] = yy + OD_CLAMPI(-athresh/4, ((3*sum + 8) >> 4), athresh/4);
     }
   }
 }
