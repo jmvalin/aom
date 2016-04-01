@@ -18,6 +18,11 @@
 #include "vp10/common/reconinter.h"
 #include "vp10/common/od_dering.h"
 
+const vpx_tree_index vp10_dering_refinement_level_tree[TREE_SIZE(
+    DERING_REFINEMENT_LEVELS)] = { -0, 2, -1, 4, -2, -3 };
+
+const vpx_prob vp10_dering_refinement_level_prob[DERING_REFINEMENT_LEVELS - 1] =
+    { 79, 91, 145 };
 
 int compute_level_from_index(int global_level, int gi) {
   static const int dering_gains[DERING_REFINEMENT_LEVELS] = {0, 11, 16, 22};

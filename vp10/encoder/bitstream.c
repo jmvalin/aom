@@ -53,6 +53,12 @@ static const struct vp10_token partition_encodings[PARTITION_TYPES] = {
 static const struct vp10_token inter_mode_encodings[INTER_MODES] = {
   { 2, 2 }, { 6, 3 }, { 0, 1 }, { 7, 3 }
 };
+#if DERING_REFINEMENT
+static const struct vp10_token
+    dering_refinement_levels_encodings[DERING_REFINEMENT_LEVELS] = {
+      { 0, 1 }, { 2, 2 }, { 6, 3 }, { 7, 3 }
+    };
+#endif
 
 static struct vp10_token ext_tx_encodings[TX_TYPES];
 
@@ -71,7 +77,13 @@ static void write_inter_mode(vpx_writer *w, PREDICTION_MODE mode,
   vp10_write_token(w, vp10_inter_mode_tree, probs,
                    &inter_mode_encodings[INTER_OFFSET(mode)]);
 }
-
+#if DERING_REFINEMENT
+static void write_dering_refinement_level(vpx_writer *w, uint8_t level,
+                                          const vpx_prob *probs) {
+  vp10_write_token(w, vp10_dering_refinement_level_tree, probs,
+                   &dering_refinement_levels_encodings[level]);
+}
+#endif
 static void encode_unsigned_max(struct vpx_write_bit_buffer *wb, int data,
                                 int max) {
   vpx_wb_write_literal(wb, data, get_unsigned_bits(max));
@@ -609,9 +621,10 @@ static void write_modes_sb(VP10_COMP *cpi, const TileInfo *const tile,
 #if DERING_REFINEMENT
   if (bsize == BLOCK_64X64 && cm->dering_level != 0 &&
       !sb_all_skip(cm, mi_row, mi_col)) {
-    vpx_write_literal(
-        w, cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain,
-        DERING_REFINEMENT_BITS);
+    write_dering_refinement_level(
+        w,
+        cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain,
+        vp10_dering_refinement_level_prob);
   }
 #endif
 }

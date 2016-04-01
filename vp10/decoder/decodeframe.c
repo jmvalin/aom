@@ -975,8 +975,9 @@ static void decode_partition(VP10Decoder *const pbi, MACROBLOCKD *const xd,
 #if DERING_REFINEMENT
   if (bsize == BLOCK_64X64) {
     if (cm->dering_level != 0 && !sb_all_skip(cm, mi_row, mi_col)) {
-      cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain =
-          vpx_read_literal(r, DERING_REFINEMENT_BITS);
+      cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.dering_gain =
+          vpx_read_tree(r, vp10_dering_refinement_level_tree,
+                        vp10_dering_refinement_level_prob);
     } else {
       cm->mi_grid_visible[mi_row*cm->mi_stride + mi_col]->mbmi.dering_gain = 0;
     }
