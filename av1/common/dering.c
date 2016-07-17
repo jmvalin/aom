@@ -112,7 +112,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 #endif
         /* FIXME: This is a temporary hack that uses more conservative
            deringing for chroma. */
-        if (pli) level = (level * 5 + 4) >> 3;
+        if (pli) level = (level * 2 + 4) >> 3;
         if (sb_all_skip(cm, sbr * MI_BLOCK_SIZE, sbc * MI_BLOCK_SIZE))
           level = 0;
         threshold = level << coeff_shift;
