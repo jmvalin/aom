@@ -2252,6 +2252,11 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
     *p_data_end = decode_tiles(pbi, data + first_partition_size, data_end);
   }
 
+#if CONFIG_DERING
+  if (cm->dering_level && !cm->skip_loop_filter) {
+    av1_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
+  }
+#endif  // CONFIG_DERING
 #if CONFIG_CLPF
   if (cm->clpf_strength && !cm->skip_loop_filter) {
     YV12_BUFFER_CONFIG dst;  // Buffer for the result
@@ -2270,11 +2275,6 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   }
   if (cm->clpf_blocks) aom_free(cm->clpf_blocks);
 #endif
-#if CONFIG_DERING
-  if (cm->dering_level && !cm->skip_loop_filter) {
-    av1_dering_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->dering_level);
-  }
-#endif  // CONFIG_DERING
 
   if (!xd->corrupted) {
     if (cm->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
