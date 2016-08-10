@@ -35,6 +35,98 @@ const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
   { 1 * OD_FILT_BSTRIDE + 0, 2 * OD_FILT_BSTRIDE - 1, 3 * OD_FILT_BSTRIDE - 1 },
 };
 
+#define ENABLE_SSE2
+
+#ifdef ENABLE_SSE2
+#include <emmintrin.h>
+
+int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
+                        int coeff_shift) {
+  int i;
+  int32_t cost[8] = { 0 };
+  int partial[8][15] = { { 0 } };
+  int32_t best_cost = 0;
+  int best_dir = 0;
+  __m128i lines[8];
+  __m128i partial6;
+  /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
+     The output is then 840 times larger, but we don't care for finding
+     the max. */
+  static const int div_table[] = { 0, 840, 420, 280, 210, 168, 140, 120, 105 };
+
+  partial6 = _mm_setzero_si128();
+  for (i = 0; i < 8; i++) {
+    lines[i] = _mm_loadu_si128((__m128i*)&img[i * stride]);
+    /* Shift here. */
+    lines[i] = _mm_sub_epi16(lines[i], _mm_set1_epi16(128));
+    partial6 = _mm_add_epi16(partial6, lines[i]);
+  }
+  partial6 = _mm_madd_epi16(partial6, partial6);
+  partial6 = _mm_add_epi32(partial6, _mm_unpackhi_epi64(partial6, partial6));
+  partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6, _MM_SHUFFLE(1, 0, 3, 2)));
+  cost[6] = _mm_cvtsi128_si32(partial6);
+
+  for (i = 0; i < 8; i++) {
+    int j;
+    for (j = 0; j < 8; j++) {
+      int x;
+      /* We subtract 128 here to reduce the maximum range of the squared
+         partial sums. */
+      x = (img[i * stride + j] >> coeff_shift) - 128;
+      partial[0][i + j] += x;
+      partial[1][i + j / 2] += x;
+      partial[2][i] += x;
+      partial[3][3 + i - j / 2] += x;
+      partial[4][7 + i - j] += x;
+      partial[5][3 - i / 2 + j] += x;
+      //partial[6][j] += x;
+      partial[7][i / 2 + j] += x;
+    }
+  }
+  for (i = 0; i < 8; i++) {
+    cost[2] += partial[2][i] * partial[2][i];
+    //cost[6] += partial[6][i] * partial[6][i];
+  }
+  cost[2] *= div_table[8];
+  cost[6] *= div_table[8];
+  for (i = 0; i < 7; i++) {
+    cost[0] += (partial[0][i] * partial[0][i] +
+                partial[0][14 - i] * partial[0][14 - i]) *
+               div_table[i + 1];
+    cost[4] += (partial[4][i] * partial[4][i] +
+                partial[4][14 - i] * partial[4][14 - i]) *
+               div_table[i + 1];
+  }
+  cost[0] += partial[0][7] * partial[0][7] * div_table[8];
+  cost[4] += partial[4][7] * partial[4][7] * div_table[8];
+  for (i = 1; i < 8; i += 2) {
+    int j;
+    for (j = 0; j < 4 + 1; j++) {
+      cost[i] += partial[i][3 + j] * partial[i][3 + j];
+    }
+    cost[i] *= div_table[8];
+    for (j = 0; j < 4 - 1; j++) {
+      cost[i] += (partial[i][j] * partial[i][j] +
+                  partial[i][10 - j] * partial[i][10 - j]) *
+                 div_table[2 * j + 2];
+    }
+  }
+  for (i = 0; i < 8; i++) {
+    if (cost[i] > best_cost) {
+      best_cost = cost[i];
+      best_dir = i;
+    }
+  }
+  /* Difference between the optimal variance and the variance along the
+     orthogonal direction. Again, the sum(x^2) terms cancel out. */
+  *var = best_cost - cost[(best_dir + 4) & 7];
+  /* We'd normally divide by 840, but dividing by 1024 is close enough
+     for what we're going to do with this. */
+  *var >>= 10;
+  return best_dir;
+}
+#endif
+
 /* Detect direction. 0 means 45-degree up-right, 2 is horizontal, and so on.
    The search minimizes the weighted variance along all the lines in a
    particular direction, i.e. the squared error between the input and a
@@ -117,10 +209,7 @@ int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
 #define OD_DERING_INBUF_SIZE \
   ((OD_BSIZE_MAX + 2 * OD_FILT_BORDER) * (OD_BSIZE_MAX + 2 * OD_FILT_BORDER))
 
-#define ENABLE_SSE2
-
 #ifdef ENABLE_SSE2
-#include <emmintrin.h>
 
 # if OD_GNUC_PREREQ(3, 0, 0)
 #  define OD_SIMD_INLINE static __inline __attribute__((always_inline))
@@ -501,7 +590,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
-        dir[by][bx] = od_dir_find8(&x[8 * by * xstride + 8 * bx], xstride,
+        dir[by][bx] = od_dir_find8_sse2(&x[8 * by * xstride + 8 * bx], xstride,
                                    &var[by][bx], coeff_shift);
       }
     }
