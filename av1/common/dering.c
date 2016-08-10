@@ -70,6 +70,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   for (pli = 0; pli < 3; pli++) {
     src[pli] = aom_malloc(sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     for (r = 0; r < bsize[pli] * cm->mi_rows; ++r) {
+      od_dering_in *ptr0 = &src[pli][r * stride];
+      const uint8_t *ptr1 = &xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride];
       for (c = 0; c < bsize[pli] * cm->mi_cols; ++c) {
 #if CONFIG_AOM_HIGHBITDEPTH
         if (cm->use_highbitdepth) {
@@ -77,8 +79,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
               xd->plane[pli].dst.buf)[r * xd->plane[pli].dst.stride + c];
         } else {
 #endif
-          src[pli][r * stride + c] =
-              xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c];
+          ptr0[c] = ptr1[c];
 #if CONFIG_AOM_HIGHBITDEPTH
         }
 #endif
@@ -86,10 +87,12 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
+    unsigned char *ptr0;
+    MODE_INFO **ptr1;
+    ptr0 = &bskip[r * cm->mi_cols];
+    ptr1 = &cm->mi_grid_visible[r * cm->mi_stride];
     for (c = 0; c < cm->mi_cols; ++c) {
-      const MB_MODE_INFO *mbmi =
-          &cm->mi_grid_visible[r * cm->mi_stride + c]->mbmi;
-      bskip[r * cm->mi_cols + c] = mbmi->skip;
+      ptr0[c] = ptr1[c]->mbmi.skip;
     }
   }
   for (sbr = 0; sbr < nvsb; sbr++) {
@@ -123,6 +126,13 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
             &bskip[MI_BLOCK_SIZE * sbr * cm->mi_cols + MI_BLOCK_SIZE * sbc],
             cm->mi_cols, threshold, OD_DERING_NO_CHECK_OVERLAP, coeff_shift);
         for (r = 0; r < bsize[pli] * nvb; ++r) {
+          uint8_t *ptr0;
+          int16_t *ptr1;
+          ptr0 = &xd->plane[pli]
+                           .dst.buf[xd->plane[pli].dst.stride *
+                                        (bsize[pli] * MI_BLOCK_SIZE * sbr + r) +
+                                    sbc * bsize[pli] * MI_BLOCK_SIZE];
+          ptr1 = &dst[r * MI_BLOCK_SIZE * bsize[pli]];
           for (c = 0; c < bsize[pli] * nhb; ++c) {
 #if CONFIG_AOM_HIGHBITDEPTH
             if (cm->use_highbitdepth) {
@@ -133,11 +143,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                   dst[r * MI_BLOCK_SIZE * bsize[pli] + c];
             } else {
 #endif
-              xd->plane[pli]
-                  .dst.buf[xd->plane[pli].dst.stride *
-                               (bsize[pli] * MI_BLOCK_SIZE * sbr + r) +
-                           sbc * bsize[pli] * MI_BLOCK_SIZE + c] =
-                  dst[r * MI_BLOCK_SIZE * bsize[pli] + c];
+              ptr0[c] = ptr1[c];
 #if CONFIG_AOM_HIGHBITDEPTH
             }
 #endif
