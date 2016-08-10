@@ -45,7 +45,7 @@ const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = { 0, 0.5,  0.707,
    in a particular direction. Since each direction have the same sum(x^2) term,
    that term is never computed. See Section 2, step 2, of:
    http://jmvalin.ca/notes/intra_paint.pdf */
-static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
+int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
   int i;
   int32_t cost[8] = { 0 };
@@ -120,6 +120,112 @@ static int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
 #define OD_DERING_INBUF_SIZE \
   ((OD_BSIZE_MAX + 2 * OD_FILT_BORDER) * (OD_BSIZE_MAX + 2 * OD_FILT_BORDER))
 
+#define ENABLE_SSE2
+
+#ifdef ENABLE_SSE2
+#include <emmintrin.h>
+
+# if OD_GNUC_PREREQ(3, 0, 0)
+#  define OD_SIMD_INLINE static __inline __attribute__((always_inline))
+# else
+#  define OD_SIMD_INLINE static
+# endif
+
+/*Corresponds to _mm_abs_epi16 (ssse3).*/
+OD_SIMD_INLINE __m128i od_abs_epi16(__m128i in) {
+  __m128i mask;
+  mask = _mm_cmpgt_epi16(_mm_setzero_si128(), in);
+  return _mm_sub_epi16(_mm_xor_si128(in, mask), mask);
+}
+
+OD_SIMD_INLINE __m128i od_cmplt_abs_epi16(__m128i in, __m128i threshold) {
+  return _mm_and_si128(_mm_cmplt_epi16(_mm_sub_epi16(_mm_setzero_si128(),
+   threshold), in), _mm_cmplt_epi16(in, threshold));
+}
+
+void od_filter_dering_direction_8x8_sse2(int16_t *y, int ystride,
+ const int16_t *in, int threshold, int dir) {
+  int i;
+  int k;
+  static const int taps[3] = {3, 2, 1};
+  __m128i sum;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i res;
+  __m128i thresh;
+  thresh = _mm_set1_epi16(threshold);
+  for (i = 0; i < 8; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    for (k = 0; k < 3; k++) {
+      /*p = in[i*OD_FILT_BSTRIDE + offset] - row*/;
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       OD_DIRECTION_OFFSETS_TABLE[dir][k]]), row);
+      /*if (abs(p) < thresh) sum += taps[k]*p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+      /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       OD_DIRECTION_OFFSETS_TABLE[dir][k]]), row);
+      /*if (abs(p) < thresh) sum += taps[k]*p1*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+    /*res = row + ((sum + 8) >> 4)*/
+    res = _mm_add_epi16(sum, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(row, res);
+    _mm_storeu_si128((__m128i*)&y[i*ystride], res);
+  }
+}
+
+void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
+ const int16_t *in, int threshold, int dir) {
+  int i;
+  int k;
+  static const int taps[3] = {3, 2, 1};
+  __m128i sum;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i res;
+  __m128i thresh;
+  thresh = _mm_set1_epi16(threshold);
+  for (i = 0; i < 4; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    for (k = 0; k < 3; k++) {
+      /*p = in[i*OD_FILT_BSTRIDE + offset] - row*/;
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       OD_DIRECTION_OFFSETS_TABLE[dir][k]]), row);
+      /*if (abs(p) < thresh) sum += taps[k]*p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+      /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       OD_DIRECTION_OFFSETS_TABLE[dir][k]]), row);
+      /*if (abs(p) < thresh) sum += taps[k]*p1*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[k]));
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+    /*res = row + ((sum + 8) >> 4)*/
+    res = _mm_add_epi16(sum, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(row, res);
+    _mm_storel_epi64((__m128i*)&y[i*ystride], res);
+  }
+}
+#endif
+
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
                                   int ln, int threshold, int dir) {
@@ -153,14 +259,119 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
 void od_filter_dering_direction_4x4_c(int16_t *y, int ystride,
                                       const int16_t *in, int threshold,
                                       int dir) {
+#ifdef ENABLE_SSE2
+  od_filter_dering_direction_4x4_sse2(y, ystride, in, threshold, dir);
+#else
   od_filter_dering_direction_c(y, ystride, in, 2, threshold, dir);
+#endif
 }
 
 void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
                                       const int16_t *in, int threshold,
                                       int dir) {
+#ifdef ENABLE_SSE2
+  od_filter_dering_direction_8x8_sse2(y, ystride, in, threshold, dir);
+#else
   od_filter_dering_direction_c(y, ystride, in, 3, threshold, dir);
+#endif
 }
+
+#ifdef ENABLE_SSE2
+
+void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+  int i;
+  int k;
+  int offset;
+  __m128i res;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i sum;
+  __m128i thresh;
+  if (dir > 0 && dir < 4) offset = OD_FILT_BSTRIDE;
+  else offset = 1;
+  for (i = 0; i < 4; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    /*thresh = OD_MINI(threshold, threshold/3
+       + abs(in[i*OD_FILT_BSTRIDE] - x[i*xstride]))*/
+    thresh = _mm_min_epi16(_mm_set1_epi16(threshold),
+     _mm_add_epi16(_mm_set1_epi16(threshold/3),
+     od_abs_epi16(_mm_sub_epi16(row,
+     _mm_loadl_epi64((__m128i*)&x[i*xstride])))));
+    for (k = 1; k <= 2; k++) {
+      /*p = in[i*OD_FILT_BSTRIDE + k*offset] - row*/
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       k*offset]), row);
+      /*if (abs(p) < thresh) sum += p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+      /*p = in[i*OD_FILT_BSTRIDE - k*offset] - row*/
+      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       k*offset]), row);
+      /*if (abs(p) < thresh) sum += p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+    /*row + ((3*sum + 8) >> 4)*/
+    res = _mm_mullo_epi16(sum, _mm_set1_epi16(3));
+    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(res, row);
+    _mm_storel_epi64((__m128i*)&y[i*ystride], res);
+  }
+}
+
+void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
+ const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+  int i;
+  int k;
+  int offset;
+  __m128i res;
+  __m128i p;
+  __m128i cmp;
+  __m128i row;
+  __m128i sum;
+  __m128i thresh;
+  if (dir > 0 && dir < 4) offset = OD_FILT_BSTRIDE;
+  else offset = 1;
+  for (i = 0; i < 8; i++) {
+    sum = _mm_set1_epi16(0);
+    row = _mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    /*thresh = OD_MINI(threshold, threshold/3
+       + abs(in[i*OD_FILT_BSTRIDE] - x[i*xstride]))*/
+    thresh = _mm_min_epi16(_mm_set1_epi16(threshold),
+     _mm_add_epi16(_mm_set1_epi16(threshold/3),
+     od_abs_epi16(_mm_sub_epi16(row,
+     _mm_loadu_si128((__m128i*)&x[i*xstride])))));
+    for (k = 1; k <= 2; k++) {
+      /*p = in[i*OD_FILT_BSTRIDE + k*offset] - row*/
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
+       k*offset]), row);
+      /*if (abs(p) < thresh) sum += p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+      /*p = in[i*OD_FILT_BSTRIDE - k*offset] - row*/
+      p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE -
+       k*offset]), row);
+      /*if (abs(p) < thresh) sum += p*/
+      cmp = od_cmplt_abs_epi16(p, thresh);
+      p = _mm_and_si128(p, cmp);
+      sum = _mm_add_epi16(sum, p);
+    }
+    /*row + ((3*sum + 8) >> 4)*/
+    res = _mm_mullo_epi16(sum, _mm_set1_epi16(3));
+    res = _mm_add_epi16(res, _mm_set1_epi16(8));
+    res = _mm_srai_epi16(res, 4);
+    res = _mm_add_epi16(res, row);
+    _mm_storeu_si128((__m128i*)&y[i*ystride], res);
+  }
+}
+#endif
 
 /* Smooth in the direction orthogonal to what was detected. */
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
@@ -208,13 +419,21 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
 void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
                                        const int16_t *in, const od_dering_in *x,
                                        int xstride, int threshold, int dir) {
+#ifdef ENABLE_SSE2
+  od_filter_dering_orthogonal_4x4_sse2(y, ystride, in, x, xstride, threshold, dir);
+#else
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 2, threshold, dir);
+#endif
 }
 
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
                                        const int16_t *in, const od_dering_in *x,
                                        int xstride, int threshold, int dir) {
+#ifdef ENABLE_SSE2
+  od_filter_dering_orthogonal_8x8_sse2(y, ystride, in, x, xstride, threshold, dir);
+#else
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 3, threshold, dir);
+#endif
 }
 
 /* This table approximates x^0.16 with the index being log2(x). It is clamped
