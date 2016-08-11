@@ -112,6 +112,35 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[3]) {
   tmp_cost1[2] = _mm_cvtsi128_si32(partial7a);
 }
 
+static INLINE void array_reverse_transpose_8x8(__m128i *in, __m128i *res) {
+  const __m128i tr0_0 = _mm_unpacklo_epi16(in[0], in[1]);
+  const __m128i tr0_1 = _mm_unpacklo_epi16(in[2], in[3]);
+  const __m128i tr0_2 = _mm_unpackhi_epi16(in[0], in[1]);
+  const __m128i tr0_3 = _mm_unpackhi_epi16(in[2], in[3]);
+  const __m128i tr0_4 = _mm_unpacklo_epi16(in[4], in[5]);
+  const __m128i tr0_5 = _mm_unpacklo_epi16(in[6], in[7]);
+  const __m128i tr0_6 = _mm_unpackhi_epi16(in[4], in[5]);
+  const __m128i tr0_7 = _mm_unpackhi_epi16(in[6], in[7]);
+
+  const __m128i tr1_0 = _mm_unpacklo_epi32(tr0_0, tr0_1);
+  const __m128i tr1_1 = _mm_unpacklo_epi32(tr0_4, tr0_5);
+  const __m128i tr1_2 = _mm_unpackhi_epi32(tr0_0, tr0_1);
+  const __m128i tr1_3 = _mm_unpackhi_epi32(tr0_4, tr0_5);
+  const __m128i tr1_4 = _mm_unpacklo_epi32(tr0_2, tr0_3);
+  const __m128i tr1_5 = _mm_unpacklo_epi32(tr0_6, tr0_7);
+  const __m128i tr1_6 = _mm_unpackhi_epi32(tr0_2, tr0_3);
+  const __m128i tr1_7 = _mm_unpackhi_epi32(tr0_6, tr0_7);
+
+  res[7] = _mm_unpacklo_epi64(tr1_0, tr1_1);
+  res[6] = _mm_unpackhi_epi64(tr1_0, tr1_1);
+  res[5] = _mm_unpacklo_epi64(tr1_2, tr1_3);
+  res[4] = _mm_unpackhi_epi64(tr1_2, tr1_3);
+  res[3] = _mm_unpacklo_epi64(tr1_4, tr1_5);
+  res[2] = _mm_unpackhi_epi64(tr1_4, tr1_5);
+  res[1] = _mm_unpacklo_epi64(tr1_6, tr1_7);
+  res[0] = _mm_unpackhi_epi64(tr1_6, tr1_7);
+}
+
 int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
   int i;
@@ -138,38 +167,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6, _MM_SHUFFLE(1, 0, 3, 2)));
   cost[6] = _mm_cvtsi128_si32(partial6);
 
-  partial4a = lines[0];
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[1], 2));
-  partial4b = _mm_slli_si128(lines[1], 14);
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[2], 4));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[2], 12));
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[3], 6));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[3], 10));
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[4], 8));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[4], 8));
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[5], 10));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[5], 6));
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[6], 12));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[6], 4));
-  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[7], 14));
-  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[7], 2));
-  /* Shift by one position and reverse vector. */
-  partial4b = _mm_shuffle_epi8(partial4b, _mm_set_epi8(3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 1, 0));
-  tmp = partial4a;
-  partial4a = _mm_unpacklo_epi16(partial4a, partial4b);
-  partial4b = _mm_unpackhi_epi16(tmp, partial4b);
-  partial4a = _mm_madd_epi16(partial4a, partial4a);
-  partial4b = _mm_madd_epi16(partial4b, partial4b);
-  partial4a = _mm_mullo_epi32(partial4a, _mm_setr_epi32(105, 120, 140, 168));
-  partial4b = _mm_mullo_epi32(partial4b, _mm_setr_epi32(210, 280, 420, 840));
-  partial4a = _mm_add_epi32(partial4a, partial4b);
-  partial4a = _mm_add_epi32(partial4a, _mm_unpackhi_epi64(partial4a, partial4a));
-  partial4a = _mm_add_epi32(partial4a, _mm_shufflelo_epi16(partial4a, _MM_SHUFFLE(1, 0, 3, 2)));
-  cost[4] = _mm_cvtsi128_si32(partial4a);
-
   compute_directions(lines, tmp_cost1);
 
-  array_transpose_8x8(lines, tlines);
+  array_reverse_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
     partial2 = _mm_add_epi16(partial2, tlines[i]);
   }
@@ -185,8 +185,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   cost[0] = tmp_cost1[0];
   cost[5] = tmp_cost1[1];
   cost[7] = tmp_cost1[2];
-  cost[1] = tmp_cost2[2];
-  cost[3] = tmp_cost2[1];
+  cost[4] = tmp_cost2[0];
+  cost[1] = tmp_cost2[1];
+  cost[3] = tmp_cost2[2];
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
       best_cost = cost[i];
