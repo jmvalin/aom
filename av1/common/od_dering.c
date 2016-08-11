@@ -44,6 +44,7 @@ const double OD_DERING_GAIN_TABLE[OD_DERING_LEVELS] = { 0, 0.5,  0.707,
 #include <smmintrin.h>
 #include <emmintrin.h>
 #include <tmmintrin.h>
+#include "aom_dsp/x86/inv_txfm_sse2.h"
 
 int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
@@ -52,8 +53,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   int partial[8][15] = { { 0 } };
   int32_t best_cost = 0;
   int best_dir = 0;
-  __m128i lines[8];
+  __m128i lines[8], tlines[8];
   __m128i tmp;
+  __m128i partial2;
   __m128i partial6;
   __m128i partial4a, partial4b;
   __m128i partial0a, partial0b;
@@ -153,6 +155,15 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   cost[0] = _mm_cvtsi128_si32(partial0a);
   //printf("%d\n", _mm_cvtsi128_si32(partial0a));
 
+  array_transpose_8x8(lines, tlines);
+  for (i = 0; i < 8; i++) {
+    partial2 = _mm_add_epi16(partial2, tlines[i]);
+  }
+  partial2 = _mm_madd_epi16(partial2, partial2);
+  partial2 = _mm_add_epi32(partial2, _mm_unpackhi_epi64(partial2, partial2));
+  partial2 = _mm_add_epi32(partial2, _mm_shufflelo_epi16(partial2, _MM_SHUFFLE(1, 0, 3, 2)));
+  cost[2] = _mm_cvtsi128_si32(partial2);
+  //printf("%d\n", _mm_cvtsi128_si32(partial2));
 
   for (i = 0; i < 8; i++) {
     int j;
@@ -163,7 +174,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
       x = (img[i * stride + j] >> coeff_shift) - 128;
       //partial[0][i + j] += x;
       partial[1][i + j / 2] += x;
-      partial[2][i] += x;
+      //partial[2][i] += x;
       partial[3][3 + i - j / 2] += x;
       //partial[4][7 + i - j] += x;
       partial[5][3 - i / 2 + j] += x;
@@ -178,9 +189,10 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   printf("\n");
 #endif
   for (i = 0; i < 8; i++) {
-    cost[2] += partial[2][i] * partial[2][i];
+    //cost[2] += partial[2][i] * partial[2][i];
     //cost[6] += partial[6][i] * partial[6][i];
   }
+  //printf("%d\n\n", cost[2]);
   cost[2] *= div_table[8];
   cost[6] *= div_table[8];
   for (i = 0; i < 7; i++) {
