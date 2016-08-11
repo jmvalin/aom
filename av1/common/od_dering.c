@@ -154,17 +154,22 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   //printf("%d\n", _mm_cvtsi128_si32(partial0a));
 
   tmp = _mm_add_epi16(lines[0], lines[1]);
-  partial7a = tmp;
+  partial7a = _mm_slli_si128(tmp, 4);
+  partial7b = _mm_srli_si128(tmp, 12);
   tmp = _mm_add_epi16(lines[2], lines[3]);
-  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 2));
-  partial7b = _mm_srli_si128(tmp, 14);
-  tmp = _mm_add_epi16(lines[4], lines[5]);
-  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 4));
-  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 12));
-  tmp = _mm_add_epi16(lines[6], lines[7]);
   partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 6));
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
-  if (1){
+  tmp = _mm_add_epi16(lines[4], lines[5]);
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 8));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 8));
+  tmp = _mm_add_epi16(lines[6], lines[7]);
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 10));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 6));
+  partial7b = _mm_shuffle_epi8(partial7b, _mm_set_epi8(15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12));
+  tmp = partial7a;
+  partial7a = _mm_unpacklo_epi16(partial7a, partial7b);
+  partial7b = _mm_unpackhi_epi16(tmp, partial7b);
+  if (0){
     int16_t  tmp[16];
     _mm_storeu_si128((__m128i*)tmp, partial7a);
     _mm_storeu_si128((__m128i*)&tmp[8], partial7b);
@@ -173,7 +178,16 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
     }
     printf("\n");
   }
+  partial7a = _mm_madd_epi16(partial7a, partial7a);
+  partial7b = _mm_madd_epi16(partial7b, partial7b);
+  partial7a = _mm_mullo_epi32(partial7a, _mm_set_epi32(210, 420, 0, 0));
+  partial7b = _mm_mullo_epi32(partial7b, _mm_set_epi32(105, 105, 105, 140));
 
+
+  partial7a = _mm_add_epi32(partial7a, partial7b);
+  partial7a = _mm_add_epi32(partial7a, _mm_unpackhi_epi64(partial7a, partial7a));
+  partial7a = _mm_add_epi32(partial7a, _mm_shufflelo_epi16(partial7a, _MM_SHUFFLE(1, 0, 3, 2)));
+  //printf("%d\n", _mm_cvtsi128_si32(partial7a));
 
   array_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
@@ -199,10 +213,10 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
       //partial[4][7 + i - j] += x;
       partial[5][3 - i / 2 + j] += x;
       //partial[6][j] += x;
-      partial[7][i / 2 + j] += x;
+      //partial[7][i / 2 + j] += x;
     }
   }
-#if 1
+#if 0
   for (i=0;i<15;i++) {
     printf("%d ", partial[7][i]);
   }
@@ -225,7 +239,6 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   }
   //cost[0] += partial[0][7] * partial[0][7] * div_table[8];
   //cost[4] += partial[4][7] * partial[4][7] * div_table[8];
-  //printf("%d\n\n", cost[0]);
   for (i = 1; i < 8; i += 2) {
     int j;
     for (j = 0; j < 4 + 1; j++) {
@@ -238,6 +251,8 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                  div_table[2 * j + 2];
     }
   }
+  //printf("%d\n\n", cost[7]);
+  cost[7] = _mm_cvtsi128_si32(partial7a);
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
       best_cost = cost[i];
