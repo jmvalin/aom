@@ -43,7 +43,8 @@ const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
 #include <tmmintrin.h>
 #include "aom_dsp/x86/inv_txfm_sse2.h"
 
-static INLINE __m128i fold_mul_and_sum(__m128i partial7a, __m128i partial7b) {
+static INLINE __m128i fold_mul_and_sum(__m128i partial7a, __m128i partial7b,
+    __m128i const1, __m128i const2) {
   __m128i tmp;
   partial7b = _mm_shuffle_epi8(partial7b, _mm_set_epi8(15, 14, 1, 0, 3, 2, 5, 4,
       7, 6, 9, 8, 11, 10, 13, 12));
@@ -52,8 +53,8 @@ static INLINE __m128i fold_mul_and_sum(__m128i partial7a, __m128i partial7b) {
   partial7b = _mm_unpackhi_epi16(tmp, partial7b);
   partial7a = _mm_madd_epi16(partial7a, partial7a);
   partial7b = _mm_madd_epi16(partial7b, partial7b);
-  partial7a = _mm_mullo_epi32(partial7a, _mm_set_epi32(210, 420, 0, 0));
-  partial7b = _mm_mullo_epi32(partial7b, _mm_set_epi32(105, 105, 105, 140));
+  partial7a = _mm_mullo_epi32(partial7a, const1);
+  partial7b = _mm_mullo_epi32(partial7b, const2);
   partial7a = _mm_add_epi32(partial7a, partial7b);
   partial7a = _mm_add_epi32(partial7a,
       _mm_unpackhi_epi64(partial7a, partial7a));
@@ -159,17 +160,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
     printf("\n");
   }
   /* Shift by one position and reverse vector. */
-  partial0b = _mm_shuffle_epi8(partial0b, _mm_set_epi8(15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12));
-  tmp = partial0a;
-  partial0a = _mm_unpacklo_epi16(partial0a, partial0b);
-  partial0b = _mm_unpackhi_epi16(tmp, partial0b);
-  partial0a = _mm_madd_epi16(partial0a, partial0a);
-  partial0b = _mm_madd_epi16(partial0b, partial0b);
-  partial0a = _mm_mullo_epi32(partial0a, _mm_set_epi32(210, 280, 420, 840));
-  partial0b = _mm_mullo_epi32(partial0b, _mm_set_epi32(105, 120, 140, 168));
-  partial0a = _mm_add_epi32(partial0a, partial0b);
-  partial0a = _mm_add_epi32(partial0a, _mm_unpackhi_epi64(partial0a, partial0a));
-  partial0a = _mm_add_epi32(partial0a, _mm_shufflelo_epi16(partial0a, _MM_SHUFFLE(1, 0, 3, 2)));
+  partial0a = fold_mul_and_sum(partial0a, partial0b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
   cost[0] = _mm_cvtsi128_si32(partial0a);
   //printf("%d\n", _mm_cvtsi128_si32(partial0a));
 
@@ -202,8 +193,8 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
     }
     printf("\n");
   }
-  partial7a = fold_mul_and_sum(partial7a, partial7b);
-  partial5a = fold_mul_and_sum(partial5a, partial5b);
+  partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
+  partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
 
   array_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
