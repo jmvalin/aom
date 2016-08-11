@@ -58,6 +58,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   __m128i partial2;
   __m128i partial6;
   __m128i partial4a, partial4b;
+  __m128i partial5a, partial5b;
   __m128i partial7a, partial7b;
   __m128i partial0a, partial0b;
   /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
@@ -157,36 +158,42 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   //printf("%d\n", _mm_cvtsi128_si32(partial0a));
 
   tmp = _mm_add_epi16(lines[0], lines[1]);
+  partial5a = _mm_slli_si128(tmp, 10);
+  partial5b = _mm_srli_si128(tmp, 6);
   partial7a = _mm_slli_si128(tmp, 4);
   partial7b = _mm_srli_si128(tmp, 12);
   tmp = _mm_add_epi16(lines[2], lines[3]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 8));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 8));
   partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 6));
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
   tmp = _mm_add_epi16(lines[4], lines[5]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 6));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 10));
   partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 8));
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 8));
   tmp = _mm_add_epi16(lines[6], lines[7]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 4));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 12));
   partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 10));
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 6));
-  partial7b = _mm_shuffle_epi8(partial7b, _mm_set_epi8(15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12));
-  tmp = partial7a;
-  partial7a = _mm_unpacklo_epi16(partial7a, partial7b);
-  partial7b = _mm_unpackhi_epi16(tmp, partial7b);
   if (0){
     int16_t  tmp[16];
-    _mm_storeu_si128((__m128i*)tmp, partial7a);
-    _mm_storeu_si128((__m128i*)&tmp[8], partial7b);
+    _mm_storeu_si128((__m128i*)tmp, partial5a);
+    _mm_storeu_si128((__m128i*)&tmp[8], partial5b);
     for (i=0; i<16; i++) {
       printf("%d ",tmp[i]);
     }
     printf("\n");
   }
+  partial7b = _mm_shuffle_epi8(partial7b, _mm_set_epi8(15, 14, 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12));
+  tmp = partial7a;
+  partial7a = _mm_unpacklo_epi16(partial7a, partial7b);
+  partial7b = _mm_unpackhi_epi16(tmp, partial7b);
   partial7a = _mm_madd_epi16(partial7a, partial7a);
   partial7b = _mm_madd_epi16(partial7b, partial7b);
   partial7a = _mm_mullo_epi32(partial7a, _mm_set_epi32(210, 420, 0, 0));
   partial7b = _mm_mullo_epi32(partial7b, _mm_set_epi32(105, 105, 105, 140));
-
-
   partial7a = _mm_add_epi32(partial7a, partial7b);
   partial7a = _mm_add_epi32(partial7a, _mm_unpackhi_epi64(partial7a, partial7a));
   partial7a = _mm_add_epi32(partial7a, _mm_shufflelo_epi16(partial7a, _MM_SHUFFLE(1, 0, 3, 2)));
@@ -221,7 +228,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   }
 #if 0
   for (i=0;i<15;i++) {
-    printf("%d ", partial[7][i]);
+    printf("%d ", partial[5][i]);
   }
   printf("\n\n");
 #endif
