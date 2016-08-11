@@ -195,8 +195,11 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial2 = _mm_add_epi32(partial2, _mm_unpackhi_epi64(partial2, partial2));
   partial2 = _mm_add_epi32(partial2, _mm_shufflelo_epi16(partial2, _MM_SHUFFLE(1, 0, 3, 2)));
   cost[2] = _mm_cvtsi128_si32(partial2);
-  //printf("%d\n", _mm_cvtsi128_si32(partial2));
 
+  compute_directions(tlines, tmp_cost2);
+
+  //printf("%d\n", _mm_cvtsi128_si32(partial2));
+#if 0
   for (i = 0; i < 8; i++) {
     int j;
     for (j = 0; j < 8; j++) {
@@ -214,6 +217,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
       //partial[7][i / 2 + j] += x;
     }
   }
+#endif
 #if 0
   for (i=0;i<15;i++) {
     printf("%d ", partial[5][i]);
@@ -237,7 +241,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   }
   //cost[0] += partial[0][7] * partial[0][7] * div_table[8];
   //cost[4] += partial[4][7] * partial[4][7] * div_table[8];
-  for (i = 1; i < 8; i += 2) {
+  /*for (i = 1; i < 8; i += 2) {
     int j;
     for (j = 0; j < 4 + 1; j++) {
       cost[i] += partial[i][3 + j] * partial[i][3 + j];
@@ -248,11 +252,13 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                   partial[i][10 - j] * partial[i][10 - j]) *
                  div_table[2 * j + 2];
     }
-  }
+  }*/
   //printf("%d\n\n", cost[7]);
   cost[0] = tmp_cost1[0];
   cost[5] = tmp_cost1[1];
   cost[7] = tmp_cost1[2];
+  cost[1] = tmp_cost2[2];
+  cost[3] = tmp_cost2[1];
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
       best_cost = cost[i];
