@@ -38,7 +38,9 @@ const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
 #define ENABLE_SSE2
 
 #ifdef ENABLE_SSE2
+#include <smmintrin.h>
 #include <emmintrin.h>
+#include <tmmintrin.h>
 
 int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
@@ -48,7 +50,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   int32_t best_cost = 0;
   int best_dir = 0;
   __m128i lines[8];
+  __m128i tmp;
   __m128i partial6;
+  __m128i partial4a, partial4b;
   /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
      The output is then 840 times larger, but we don't care for finding
      the max. */
@@ -65,6 +69,63 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial6 = _mm_add_epi32(partial6, _mm_unpackhi_epi64(partial6, partial6));
   partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6, _MM_SHUFFLE(1, 0, 3, 2)));
   cost[6] = _mm_cvtsi128_si32(partial6);
+
+  partial4a = lines[0];
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[1], 2));
+  partial4b = _mm_slli_si128(lines[1], 14);
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[2], 4));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[2], 12));
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[3], 6));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[3], 10));
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[4], 8));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[4], 8));
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[5], 10));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[5], 6));
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[6], 12));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[6], 4));
+  partial4a = _mm_add_epi16(partial4a, _mm_srli_si128(lines[7], 14));
+  partial4b = _mm_add_epi16(partial4b, _mm_slli_si128(lines[7], 2));
+  /* Shift by one position and reverse vector. */
+  partial4b = _mm_shuffle_epi8(partial4b, _mm_set_epi8(3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 1, 0));
+  tmp = partial4a;
+  partial4a = _mm_unpacklo_epi16(partial4a, partial4b);
+  partial4b = _mm_unpackhi_epi16(tmp, partial4b);
+  if (0) {
+    int16_t tmp[16];
+    _mm_storeu_si128((__m128i*)tmp, partial4a);
+    _mm_storeu_si128((__m128i*)&tmp[8], partial4b);
+    for (i=0;i<16;i++) {
+      printf("%d ", tmp[i]);
+    }
+    printf("\n");
+  }
+  partial4a = _mm_madd_epi16(partial4a, partial4a);
+  partial4b = _mm_madd_epi16(partial4b, partial4b);
+  if (0) {
+    int tmp[8];
+    _mm_storeu_si128((__m128i*)tmp, partial4a);
+    _mm_storeu_si128((__m128i*)&tmp[4], partial4b);
+    for (i=0;i<8;i++) {
+      printf("%d ", tmp[i]);
+    }
+    printf("\n");
+  }
+  partial4a = _mm_mullo_epi32(partial4a, _mm_setr_epi32(105, 120, 140, 168));
+  partial4b = _mm_mullo_epi32(partial4b, _mm_setr_epi32(210, 280, 420, 840));
+  if (0) {
+    int tmp[8];
+    _mm_storeu_si128((__m128i*)tmp, partial4a);
+    _mm_storeu_si128((__m128i*)&tmp[4], partial4b);
+    for (i=0;i<8;i++) {
+      printf("%d ", tmp[i]);
+    }
+    printf("\n");
+  }
+  partial4a = _mm_add_epi32(partial4a, partial4b);
+  partial4a = _mm_add_epi32(partial4a, _mm_unpackhi_epi64(partial4a, partial4a));
+  partial4a = _mm_add_epi32(partial4a, _mm_shufflelo_epi16(partial4a, _MM_SHUFFLE(1, 0, 3, 2)));
+  cost[4] = _mm_cvtsi128_si32(partial4a);
+  //printf("%d\n", _mm_cvtsi128_si32(partial4a));
 
   for (i = 0; i < 8; i++) {
     int j;
@@ -83,6 +144,12 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
       partial[7][i / 2 + j] += x;
     }
   }
+#if 0
+  for (i=0;i<15;i++) {
+    printf("%d ", partial[4][i]);
+  }
+  printf("\n");
+#endif
   for (i = 0; i < 8; i++) {
     cost[2] += partial[2][i] * partial[2][i];
     //cost[6] += partial[6][i] * partial[6][i];
@@ -93,12 +160,13 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
     cost[0] += (partial[0][i] * partial[0][i] +
                 partial[0][14 - i] * partial[0][14 - i]) *
                div_table[i + 1];
-    cost[4] += (partial[4][i] * partial[4][i] +
-                partial[4][14 - i] * partial[4][14 - i]) *
-               div_table[i + 1];
+    //cost[4] += (partial[4][i] * partial[4][i] +
+    //            partial[4][14 - i] * partial[4][14 - i]) *
+    //           div_table[i + 1];
   }
   cost[0] += partial[0][7] * partial[0][7] * div_table[8];
-  cost[4] += partial[4][7] * partial[4][7] * div_table[8];
+  //cost[4] += partial[4][7] * partial[4][7] * div_table[8];
+  //printf("%d\n\n", cost[4]);
   for (i = 1; i < 8; i += 2) {
     int j;
     for (j = 0; j < 4 + 1; j++) {
