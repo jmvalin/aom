@@ -58,6 +58,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   __m128i partial2;
   __m128i partial6;
   __m128i partial4a, partial4b;
+  __m128i partial7a, partial7b;
   __m128i partial0a, partial0b;
   /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
      The output is then 840 times larger, but we don't care for finding
@@ -155,6 +156,28 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   cost[0] = _mm_cvtsi128_si32(partial0a);
   //printf("%d\n", _mm_cvtsi128_si32(partial0a));
 
+  tmp = _mm_add_epi16(lines[0], lines[1]);
+  partial7a = tmp;
+  tmp = _mm_add_epi16(lines[2], lines[3]);
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 2));
+  partial7b = _mm_srli_si128(tmp, 14);
+  tmp = _mm_add_epi16(lines[4], lines[5]);
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 4));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 12));
+  tmp = _mm_add_epi16(lines[6], lines[7]);
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 6));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
+  if (1){
+    int16_t  tmp[16];
+    _mm_storeu_si128((__m128i*)tmp, partial7a);
+    _mm_storeu_si128((__m128i*)&tmp[8], partial7b);
+    for (i=0; i<16; i++) {
+      printf("%d ",tmp[i]);
+    }
+    printf("\n");
+  }
+
+
   array_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
     partial2 = _mm_add_epi16(partial2, tlines[i]);
@@ -182,11 +205,11 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
       partial[7][i / 2 + j] += x;
     }
   }
-#if 0
+#if 1
   for (i=0;i<15;i++) {
-    printf("%d ", partial[0][i]);
+    printf("%d ", partial[7][i]);
   }
-  printf("\n");
+  printf("\n\n");
 #endif
   for (i = 0; i < 8; i++) {
     //cost[2] += partial[2][i] * partial[2][i];
