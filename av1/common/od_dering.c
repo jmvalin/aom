@@ -63,6 +63,55 @@ static INLINE __m128i fold_mul_and_sum(__m128i partiala, __m128i partialb,
   return partiala;
 }
 
+static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[3]) {
+  __m128i partial0a, partial0b, partial5a, partial5b, partial7a, partial7b;
+  __m128i tmp;
+  partial0a = lines[0];
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[1], 2));
+  partial0b = _mm_srli_si128(lines[1], 14);
+  tmp = _mm_add_epi16(lines[0], lines[1]);
+  partial5a = _mm_slli_si128(tmp, 10);
+  partial5b = _mm_srli_si128(tmp, 6);
+  partial7a = _mm_slli_si128(tmp, 4);
+  partial7b = _mm_srli_si128(tmp, 12);
+
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[2], 4));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[2], 12));
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[3], 6));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[3], 10));
+  tmp = _mm_add_epi16(lines[2], lines[3]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 8));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 8));
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 6));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
+
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[4], 8));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[4], 8));
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[5], 10));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[5], 6));
+  tmp = _mm_add_epi16(lines[4], lines[5]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 6));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 10));
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 8));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 8));
+
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[6], 12));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[6], 4));
+  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[7], 14));
+  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[7], 2));
+  tmp = _mm_add_epi16(lines[6], lines[7]);
+  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 4));
+  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 12));
+  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 10));
+  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 6));
+  partial0a = fold_mul_and_sum(partial0a, partial0b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
+  partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
+  partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
+  tmp_cost1[0] = _mm_cvtsi128_si32(partial0a);
+  tmp_cost1[1] = _mm_cvtsi128_si32(partial5a);
+  tmp_cost1[2] = _mm_cvtsi128_si32(partial7a);
+}
+
 int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
   int i;
@@ -77,9 +126,6 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   __m128i partial2;
   __m128i partial6;
   __m128i partial4a, partial4b;
-  __m128i partial5a, partial5b;
-  __m128i partial7a, partial7b;
-  __m128i partial0a, partial0b;
   /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
      The output is then 840 times larger, but we don't care for finding
      the max. */
@@ -136,51 +182,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   cost[4] = _mm_cvtsi128_si32(partial4a);
   //printf("%d\n", _mm_cvtsi128_si32(partial4a));
 
-
-  partial0a = lines[0];
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[1], 2));
-  partial0b = _mm_srli_si128(lines[1], 14);
-  tmp = _mm_add_epi16(lines[0], lines[1]);
-  partial5a = _mm_slli_si128(tmp, 10);
-  partial5b = _mm_srli_si128(tmp, 6);
-  partial7a = _mm_slli_si128(tmp, 4);
-  partial7b = _mm_srli_si128(tmp, 12);
-
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[2], 4));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[2], 12));
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[3], 6));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[3], 10));
-  tmp = _mm_add_epi16(lines[2], lines[3]);
-  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 8));
-  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 8));
-  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 6));
-  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
-
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[4], 8));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[4], 8));
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[5], 10));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[5], 6));
-  tmp = _mm_add_epi16(lines[4], lines[5]);
-  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 6));
-  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 10));
-  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 8));
-  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 8));
-
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[6], 12));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[6], 4));
-  partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[7], 14));
-  partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[7], 2));
-  tmp = _mm_add_epi16(lines[6], lines[7]);
-  partial5a = _mm_add_epi16(partial5a, _mm_slli_si128(tmp, 4));
-  partial5b = _mm_add_epi16(partial5b, _mm_srli_si128(tmp, 12));
-  partial7a = _mm_add_epi16(partial7a, _mm_slli_si128(tmp, 10));
-  partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 6));
-  partial0a = fold_mul_and_sum(partial0a, partial0b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
-  partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
-  partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
-  tmp_cost1[0] = _mm_cvtsi128_si32(partial0a);
-  tmp_cost1[1] = _mm_cvtsi128_si32(partial5a);
-  tmp_cost1[2] = _mm_cvtsi128_si32(partial7a);
+  compute_directions(lines, tmp_cost1);
 
   array_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
