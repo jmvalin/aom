@@ -41,7 +41,6 @@ const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
 #include <smmintrin.h>
 #include <emmintrin.h>
 #include <tmmintrin.h>
-#include "aom_dsp/x86/inv_txfm_sse2.h"
 
 static INLINE __m128i fold_mul_and_sum(__m128i partiala, __m128i partialb,
     __m128i const1, __m128i const2) {
@@ -165,7 +164,7 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial6 = _mm_madd_epi16(partial6, partial6);
   partial6 = _mm_add_epi32(partial6, _mm_unpackhi_epi64(partial6, partial6));
   partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6, _MM_SHUFFLE(1, 0, 3, 2)));
-  cost[6] = _mm_cvtsi128_si32(partial6);
+  cost[6] = 105*_mm_cvtsi128_si32(partial6);
 
   compute_directions(lines, tmp_cost1);
 
@@ -176,12 +175,10 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial2 = _mm_madd_epi16(partial2, partial2);
   partial2 = _mm_add_epi32(partial2, _mm_unpackhi_epi64(partial2, partial2));
   partial2 = _mm_add_epi32(partial2, _mm_shufflelo_epi16(partial2, _MM_SHUFFLE(1, 0, 3, 2)));
-  cost[2] = _mm_cvtsi128_si32(partial2);
+  cost[2] = 105*_mm_cvtsi128_si32(partial2);
 
   compute_directions(tlines, tmp_cost2);
 
-  cost[2] *= 105;
-  cost[6] *= 105;
   cost[0] = tmp_cost1[0];
   cost[5] = tmp_cost1[1];
   cost[7] = tmp_cost1[2];
