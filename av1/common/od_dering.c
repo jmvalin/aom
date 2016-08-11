@@ -118,8 +118,7 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[3]) {
 int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
                         int coeff_shift) {
   int i;
-  int32_t cost[8] = { 0 };
-  int partial[8][15] = { { 0 } };
+  int32_t cost[8];
   int32_t best_cost = 0;
   int32_t tmp_cost1[3];
   int32_t tmp_cost2[3];
@@ -129,10 +128,6 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   __m128i partial2;
   __m128i partial6;
   __m128i partial4a, partial4b;
-  /* Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
-     The output is then 840 times larger, but we don't care for finding
-     the max. */
-  static const int div_table[] = { 0, 840, 420, 280, 210, 168, 140, 120, 105 };
 
   partial6 = _mm_setzero_si128();
   for (i = 0; i < 8; i++) {
@@ -166,15 +161,6 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   tmp = partial4a;
   partial4a = _mm_unpacklo_epi16(partial4a, partial4b);
   partial4b = _mm_unpackhi_epi16(tmp, partial4b);
-  if (0) {
-    int16_t tmp[16];
-    _mm_storeu_si128((__m128i*)tmp, partial4a);
-    _mm_storeu_si128((__m128i*)&tmp[8], partial4b);
-    for (i=0;i<16;i++) {
-      printf("%d ", tmp[i]);
-    }
-    printf("\n");
-  }
   partial4a = _mm_madd_epi16(partial4a, partial4a);
   partial4b = _mm_madd_epi16(partial4b, partial4b);
   partial4a = _mm_mullo_epi32(partial4a, _mm_setr_epi32(105, 120, 140, 168));
@@ -183,7 +169,6 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial4a = _mm_add_epi32(partial4a, _mm_unpackhi_epi64(partial4a, partial4a));
   partial4a = _mm_add_epi32(partial4a, _mm_shufflelo_epi16(partial4a, _MM_SHUFFLE(1, 0, 3, 2)));
   cost[4] = _mm_cvtsi128_si32(partial4a);
-  //printf("%d\n", _mm_cvtsi128_si32(partial4a));
 
   compute_directions(lines, tmp_cost1);
 
@@ -198,62 +183,8 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
 
   compute_directions(tlines, tmp_cost2);
 
-  //printf("%d\n", _mm_cvtsi128_si32(partial2));
-#if 0
-  for (i = 0; i < 8; i++) {
-    int j;
-    for (j = 0; j < 8; j++) {
-      int x;
-      /* We subtract 128 here to reduce the maximum range of the squared
-         partial sums. */
-      x = (img[i * stride + j] >> coeff_shift) - 128;
-      //partial[0][i + j] += x;
-      partial[1][i + j / 2] += x;
-      //partial[2][i] += x;
-      partial[3][3 + i - j / 2] += x;
-      //partial[4][7 + i - j] += x;
-      //partial[5][3 - i / 2 + j] += x;
-      //partial[6][j] += x;
-      //partial[7][i / 2 + j] += x;
-    }
-  }
-#endif
-#if 0
-  for (i=0;i<15;i++) {
-    printf("%d ", partial[5][i]);
-  }
-  printf("\n\n");
-#endif
-  for (i = 0; i < 8; i++) {
-    //cost[2] += partial[2][i] * partial[2][i];
-    //cost[6] += partial[6][i] * partial[6][i];
-  }
-  //printf("%d\n\n", cost[2]);
-  cost[2] *= div_table[8];
-  cost[6] *= div_table[8];
-  for (i = 0; i < 7; i++) {
-    //cost[0] += (partial[0][i] * partial[0][i] +
-    //            partial[0][14 - i] * partial[0][14 - i]) *
-    //           div_table[i + 1];
-    //cost[4] += (partial[4][i] * partial[4][i] +
-    //            partial[4][14 - i] * partial[4][14 - i]) *
-    //           div_table[i + 1];
-  }
-  //cost[0] += partial[0][7] * partial[0][7] * div_table[8];
-  //cost[4] += partial[4][7] * partial[4][7] * div_table[8];
-  /*for (i = 1; i < 8; i += 2) {
-    int j;
-    for (j = 0; j < 4 + 1; j++) {
-      cost[i] += partial[i][3 + j] * partial[i][3 + j];
-    }
-    cost[i] *= div_table[8];
-    for (j = 0; j < 4 - 1; j++) {
-      cost[i] += (partial[i][j] * partial[i][j] +
-                  partial[i][10 - j] * partial[i][10 - j]) *
-                 div_table[2 * j + 2];
-    }
-  }*/
-  //printf("%d\n\n", cost[7]);
+  cost[2] *= 105;
+  cost[6] *= 105;
   cost[0] = tmp_cost1[0];
   cost[5] = tmp_cost1[1];
   cost[7] = tmp_cost1[2];
