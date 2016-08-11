@@ -69,6 +69,8 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   int32_t cost[8] = { 0 };
   int partial[8][15] = { { 0 } };
   int32_t best_cost = 0;
+  int32_t tmp_cost1[3];
+  int32_t tmp_cost2[3];
   int best_dir = 0;
   __m128i lines[8], tlines[8];
   __m128i tmp;
@@ -176,6 +178,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
   partial0a = fold_mul_and_sum(partial0a, partial0b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
   partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
   partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
+  tmp_cost1[0] = _mm_cvtsi128_si32(partial0a);
+  tmp_cost1[1] = _mm_cvtsi128_si32(partial5a);
+  tmp_cost1[2] = _mm_cvtsi128_si32(partial7a);
 
   array_transpose_8x8(lines, tlines);
   for (i = 0; i < 8; i++) {
@@ -240,9 +245,9 @@ int od_dir_find8_sse2(const od_dering_in *img, int stride, int32_t *var,
     }
   }
   //printf("%d\n\n", cost[7]);
-  cost[0] = _mm_cvtsi128_si32(partial0a);
-  cost[7] = _mm_cvtsi128_si32(partial7a);
-  cost[5] = _mm_cvtsi128_si32(partial5a);
+  cost[0] = tmp_cost1[0];
+  cost[5] = tmp_cost1[1];
+  cost[7] = tmp_cost1[2];
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
       best_cost = cost[i];
