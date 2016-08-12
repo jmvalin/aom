@@ -76,10 +76,13 @@ static INLINE __m128i fold_mul_and_sum(__m128i partiala, __m128i partialb,
   return partiala;
 }
 
+/* Computes cost for directions 0, 5, 6 and 7. We can call this function again
+   to compute the remaining directions. */
 static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   __m128i partial0a, partial0b, partial5a, partial5b, partial7a, partial7b;
   __m128i partial6;
   __m128i tmp;
+  /* Partial sums for lines 0 and 1. */
   partial0a = lines[0];
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[1], 2));
   partial0b = _mm_srli_si128(lines[1], 14);
@@ -90,6 +93,7 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial7b = _mm_srli_si128(tmp, 12);
   partial6 = tmp;
 
+  /* Partial sums for lines 2 and 3. */
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[2], 4));
   partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[2], 12));
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[3], 6));
@@ -101,6 +105,7 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 10));
   partial6 = _mm_add_epi16(partial6, tmp);
 
+  /* Partial sums for lines 4 and 5. */
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[4], 8));
   partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[4], 8));
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[5], 10));
@@ -112,6 +117,7 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 8));
   partial6 = _mm_add_epi16(partial6, tmp);
 
+  /* Partial sums for lines 6 and 7. */
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[6], 12));
   partial0b = _mm_add_epi16(partial0b, _mm_srli_si128(lines[6], 4));
   partial0a = _mm_add_epi16(partial0a, _mm_slli_si128(lines[7], 14));
@@ -123,13 +129,14 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial7b = _mm_add_epi16(partial7b, _mm_srli_si128(tmp, 6));
   partial6 = _mm_add_epi16(partial6, tmp);
 
+  /* Compute costs in terms of partial sums. */
   partial0a = fold_mul_and_sum(partial0a, partial0b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
   partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
   partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
   tmp_cost1[0] = _mm_cvtsi128_si32(partial0a);
   tmp_cost1[1] = _mm_cvtsi128_si32(partial5a);
   tmp_cost1[2] = _mm_cvtsi128_si32(partial7a);
-
+  /* Horizontal sum. */
   partial6 = _mm_madd_epi16(partial6, partial6);
   partial6 = _mm_add_epi32(partial6, _mm_unpackhi_epi64(partial6, partial6));
   partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6,
