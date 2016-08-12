@@ -45,6 +45,18 @@ int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
   return skip;
 }
 
+#include <emmintrin.h>
+#include <smmintrin.h>
+static INLINE void copy8to16(int16_t *dst, const uint8_t *src, int n) {
+  int i;
+  for (i=0;i<n-3;i+=4) {
+    __m128i tmp;
+    tmp = _mm_loadl_epi64((__m128i*)&src[i]);
+    tmp = _mm_cvtepu8_epi16(tmp);
+    _mm_storeu_si128((__m128i*)&dst[i], tmp);
+  }
+}
+
 void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                       MACROBLOCKD *xd, int global_level) {
   int r, c;
@@ -72,6 +84,9 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     for (r = 0; r < bsize[pli] * cm->mi_rows; ++r) {
       od_dering_in *ptr0 = &src[pli][r * stride];
       const uint8_t *ptr1 = &xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride];
+#if 1
+      copy8to16(ptr0, ptr1, bsize[pli] * cm->mi_cols);
+#else
       for (c = 0; c < bsize[pli] * cm->mi_cols; ++c) {
 #if CONFIG_AOM_HIGHBITDEPTH
         if (cm->use_highbitdepth) {
@@ -84,6 +99,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         }
 #endif
       }
+#endif
     }
   }
   for (r = 0; r < cm->mi_rows; ++r) {
