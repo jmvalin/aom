@@ -66,6 +66,15 @@ static INLINE __m128i fold_mul_and_sum(__m128i partiala, __m128i partialb,
   partialb = _mm_mullo_epi32(partialb, const2);
   /* Sum all results. */
   partiala = _mm_add_epi32(partiala, partialb);
+  /*partiala = _mm_add_epi32(partiala,
+      _mm_unpackhi_epi64(partiala, partiala));
+  partiala = _mm_add_epi32(partiala,
+      _mm_shufflelo_epi16(partiala, _MM_SHUFFLE(1, 0, 3, 2)));*/
+  return partiala;
+}
+
+INLINE __m128i hsum(__m128i partiala)
+{
   partiala = _mm_add_epi32(partiala,
       _mm_unpackhi_epi64(partiala, partiala));
   partiala = _mm_add_epi32(partiala,
@@ -127,18 +136,15 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial6 = _mm_add_epi16(partial6, tmp);
 
   /* Compute costs in terms of partial sums. */
-  partial4a = fold_mul_and_sum(partial4a, partial4b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168));
-  partial7a = fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
-  partial5a = fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140));
+  partial4a = hsum(fold_mul_and_sum(partial4a, partial4b, _mm_set_epi32(210, 280, 420, 840), _mm_set_epi32(105, 120, 140, 168)));
+  partial7a = hsum(fold_mul_and_sum(partial7a, partial7b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140)));
+  partial5a = hsum(fold_mul_and_sum(partial5a, partial5b, _mm_set_epi32(210, 420, 0, 0), _mm_set_epi32(105, 105, 105, 140)));
+  partial6 = _mm_madd_epi16(partial6, partial6);
+  partial6 = _mm_mullo_epi32(partial6, _mm_set1_epi32(105));
   tmp_cost1[0] = _mm_cvtsi128_si32(partial4a);
   tmp_cost1[1] = _mm_cvtsi128_si32(partial5a);
+  tmp_cost1[2] = _mm_cvtsi128_si32(hsum(partial6));
   tmp_cost1[3] = _mm_cvtsi128_si32(partial7a);
-  /* Horizontal sum. */
-  partial6 = _mm_madd_epi16(partial6, partial6);
-  partial6 = _mm_add_epi32(partial6, _mm_unpackhi_epi64(partial6, partial6));
-  partial6 = _mm_add_epi32(partial6, _mm_shufflelo_epi16(partial6,
-      _MM_SHUFFLE(1, 0, 3, 2)));
-  tmp_cost1[2] = _mm_cvtsi128_si32(partial6)*105;
 }
 
 /* transpose and reverse the order of the lines -- equivalent to a 90-degree
