@@ -35,9 +35,9 @@ const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
   { 1 * OD_FILT_BSTRIDE + 0, 2 * OD_FILT_BSTRIDE - 1, 3 * OD_FILT_BSTRIDE - 1 },
 };
 
-#define ENABLE_SSE2
+#define ENABLE_SSE4_1
 
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
 #include <smmintrin.h>
 #include <emmintrin.h>
 #include <tmmintrin.h>
@@ -66,10 +66,6 @@ static INLINE __m128i fold_mul_and_sum(__m128i partiala, __m128i partialb,
   partialb = _mm_mullo_epi32(partialb, const2);
   /* Sum all results. */
   partiala = _mm_add_epi32(partiala, partialb);
-  /*partiala = _mm_add_epi32(partiala,
-      _mm_unpackhi_epi64(partiala, partiala));
-  partiala = _mm_add_epi32(partiala,
-      _mm_shufflelo_epi16(partiala, _MM_SHUFFLE(1, 0, 3, 2)));*/
   return partiala;
 }
 
