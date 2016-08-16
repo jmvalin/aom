@@ -296,7 +296,7 @@ int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
 #define OD_DERING_INBUF_SIZE \
   ((OD_BSIZE_MAX + 2 * OD_FILT_BORDER) * (OD_BSIZE_MAX + 2 * OD_FILT_BORDER))
 
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
 
 # if OD_GNUC_PREREQ(3, 0, 0)
 #  define OD_SIMD_INLINE static __inline __attribute__((always_inline))
@@ -432,7 +432,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
 void od_filter_dering_direction_4x4_c(int16_t *y, int ystride,
                                       const int16_t *in, int threshold,
                                       int dir) {
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
   od_filter_dering_direction_4x4_sse2(y, ystride, in, threshold, dir);
 #else
   od_filter_dering_direction_c(y, ystride, in, 2, threshold, dir);
@@ -442,14 +442,14 @@ void od_filter_dering_direction_4x4_c(int16_t *y, int ystride,
 void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
                                       const int16_t *in, int threshold,
                                       int dir) {
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
   od_filter_dering_direction_8x8_sse2(y, ystride, in, threshold, dir);
 #else
   od_filter_dering_direction_c(y, ystride, in, 3, threshold, dir);
 #endif
 }
 
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
 
 void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
  const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
@@ -592,7 +592,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
 void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
                                        const int16_t *in, const od_dering_in *x,
                                        int xstride, int threshold, int dir) {
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
   od_filter_dering_orthogonal_4x4_sse2(y, ystride, in, x, xstride, threshold, dir);
 #else
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 2, threshold, dir);
@@ -602,7 +602,7 @@ void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
                                        const int16_t *in, const od_dering_in *x,
                                        int xstride, int threshold, int dir) {
-#ifdef ENABLE_SSE2
+#ifdef ENABLE_SSE4_1
   od_filter_dering_orthogonal_8x8_sse2(y, ystride, in, x, xstride, threshold, dir);
 #else
   od_filter_dering_orthogonal_c(y, ystride, in, x, xstride, 3, threshold, dir);
