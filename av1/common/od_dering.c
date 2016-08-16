@@ -84,7 +84,7 @@ __m128i hsum4(__m128i x0, __m128i x1, __m128i x2, __m128i x3) {
 
 /* Computes cost for directions 0, 5, 6 and 7. We can call this function again
    to compute the remaining directions. */
-static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
+static INLINE __m128i compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   __m128i partial4a, partial4b, partial5a, partial5b, partial7a, partial7b;
   __m128i partial6;
   __m128i tmp;
@@ -142,7 +142,9 @@ static INLINE void compute_directions(__m128i lines[8], int32_t tmp_cost1[4]) {
   partial6 = _mm_madd_epi16(partial6, partial6);
   partial6 = _mm_mullo_epi32(partial6, _mm_set1_epi32(105));
 
-  _mm_storeu_si128((__m128i*)tmp_cost1, hsum4(partial4a, partial5a, partial6, partial7a));
+  partial4a = hsum4(partial4a, partial5a, partial6, partial7a);
+  _mm_storeu_si128((__m128i*)tmp_cost1, partial4a);
+  return partial4a;
 }
 
 /* transpose and reverse the order of the lines -- equivalent to a 90-degree
@@ -182,7 +184,9 @@ int __attribute__ ((noinline)) od_dir_find8_sse2(const od_dering_in *img, int st
   int32_t cost[8];
   int32_t best_cost = 0;
   int best_dir = 0;
-  __m128i lines[8], tlines[8];
+  __m128i lines[8];
+  __m128i dir03, dir47;
+  __m128i max;
 
   for (i = 0; i < 8; i++) {
     lines[i] = _mm_loadu_si128((__m128i*)&img[i * stride]);
@@ -191,12 +195,26 @@ int __attribute__ ((noinline)) od_dir_find8_sse2(const od_dering_in *img, int st
   }
 
   /* Compute "mostly vertical" directions. */
-  compute_directions(lines, cost+4);
+  dir47 = compute_directions(lines, cost+4);
 
-  array_reverse_transpose_8x8(lines, tlines);
+  array_reverse_transpose_8x8(lines, lines);
 
   /* Compute "mostly horizontal" directions. */
-  compute_directions(tlines, cost);
+  dir03 = compute_directions(lines, cost);
+
+  max = _mm_max_epi32(dir03, dir47);
+  max = _mm_max_epi32(max,
+      _mm_shuffle_epi32(max, _MM_SHUFFLE(1, 0, 3, 2)));
+  max = _mm_max_epi32(max,
+      _mm_shuffle_epi32(max, _MM_SHUFFLE(2, 3, 0, 1)));
+  dir03 = _mm_and_si128(_mm_cmpeq_epi32(max, dir03), _mm_setr_epi32(-1, -2, -3, -4));
+  dir47 = _mm_and_si128(_mm_cmpeq_epi32(max, dir47), _mm_setr_epi32(-5, -6, -7, -8));
+  dir03 = _mm_max_epu32(dir03, dir47);
+  dir03 = _mm_max_epu32(dir03,
+      _mm_unpackhi_epi64(dir03, dir03));
+  dir03 = _mm_max_epu32(dir03,
+      _mm_shufflelo_epi16(dir03, _MM_SHUFFLE(1, 0, 3, 2)));
+  dir03 = _mm_xor_si128(dir03, _mm_set1_epi32(0xFFFFFFFF));
 
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
@@ -204,6 +222,9 @@ int __attribute__ ((noinline)) od_dir_find8_sse2(const od_dering_in *img, int st
       best_dir = i;
     }
   }
+  //printf("%d %d   %d %d\n\n", best_dir, ~_mm_cvtsi128_si32(dir03), cost[best_dir], cost[~_mm_cvtsi128_si32(dir03)]);
+  assert(best_cost == _mm_cvtsi128_si32(max));
+  assert(best_dir == _mm_cvtsi128_si32(dir03));
   /* Difference between the optimal variance and the variance along the
      orthogonal direction. Again, the sum(x^2) terms cancel out. */
   *var = best_cost - cost[(best_dir + 4) & 7];
