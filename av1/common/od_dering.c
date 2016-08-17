@@ -417,8 +417,6 @@ void od_filter_dering_direction_8x8_sse2(int16_t *y, int ystride,
 void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
  const int16_t *in, int threshold, int dir) {
   int i;
-  int k;
-  static const int taps[3] = {3, 2, 1};
   __m128i sum;
   __m128i p;
   __m128i cmp;
@@ -439,7 +437,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off1]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[0]));
+      p = _mm_add_epi16(p, _mm_add_epi16(p, p));
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
@@ -447,7 +445,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off1]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[0]));
+      p = _mm_add_epi16(p, _mm_add_epi16(p, p));
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
 
@@ -456,7 +454,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off2]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[1]));
+      p = _mm_add_epi16(p, p);
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
@@ -464,7 +462,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off2]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[1]));
+      p = _mm_add_epi16(p, p);
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
 
@@ -473,7 +471,6 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off3]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[2]));
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
@@ -481,7 +478,6 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
        off3]), row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
-      p = _mm_mullo_epi16(p, _mm_set1_epi16(taps[2]));
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
 
