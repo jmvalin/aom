@@ -202,6 +202,7 @@ int __attribute__ ((noinline)) od_dir_find8_sse2(const od_dering_in *img, int st
   /* Compute "mostly horizontal" directions. */
   dir03 = compute_directions(lines, cost);
 
+#if 1
   max = _mm_max_epi32(dir03, dir47);
   max = _mm_max_epi32(max,
       _mm_shuffle_epi32(max, _MM_SHUFFLE(1, 0, 3, 2)));
@@ -216,15 +217,16 @@ int __attribute__ ((noinline)) od_dir_find8_sse2(const od_dering_in *img, int st
       _mm_shufflelo_epi16(dir03, _MM_SHUFFLE(1, 0, 3, 2)));
   dir03 = _mm_xor_si128(dir03, _mm_set1_epi32(0xFFFFFFFF));
 
+  best_dir = _mm_cvtsi128_si32(dir03);
+  best_cost = _mm_cvtsi128_si32(max);
+#else
   for (i = 0; i < 8; i++) {
     if (cost[i] > best_cost) {
       best_cost = cost[i];
       best_dir = i;
     }
   }
-  //printf("%d %d   %d %d\n\n", best_dir, ~_mm_cvtsi128_si32(dir03), cost[best_dir], cost[~_mm_cvtsi128_si32(dir03)]);
-  assert(best_cost == _mm_cvtsi128_si32(max));
-  assert(best_dir == _mm_cvtsi128_si32(dir03));
+#endif
   /* Difference between the optimal variance and the variance along the
      orthogonal direction. Again, the sum(x^2) terms cancel out. */
   *var = best_cost - cost[(best_dir + 4) & 7];
