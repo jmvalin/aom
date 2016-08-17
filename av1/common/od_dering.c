@@ -766,6 +766,12 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
+        if (bskip[by * skip_stride + bx])
+        {
+          dir[by][bx] = 0;
+          var[by][bx] = 0;
+          continue;
+        }
         dir[by][bx] = od_dir_find8_sse2(&x[8 * by * xstride + 8 * bx], xstride,
                                    &var[by][bx], coeff_shift);
       }
