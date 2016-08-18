@@ -425,27 +425,33 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
   __m128i cmp;
   __m128i row;
   __m128i res;
+  __m128i tmp;
   __m128i thresh;
   int off1, off2, off3;
   off1 = OD_DIRECTION_OFFSETS_TABLE[dir][0];
   off2 = OD_DIRECTION_OFFSETS_TABLE[dir][1];
   off3 = OD_DIRECTION_OFFSETS_TABLE[dir][2];
   thresh = _mm_set1_epi16(threshold);
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 4; i+=2) {
     sum = _mm_set1_epi16(0);
-    row = _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]);
+    row = _mm_unpacklo_epi64(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE]),
+        _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE]));
 
       /*p = in[i*OD_FILT_BSTRIDE + offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
-       off1]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE + off1]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE + off1]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_add_epi16(p, _mm_add_epi16(p, p));
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
-       off1]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE - off1]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE - off1]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_add_epi16(p, _mm_add_epi16(p, p));
@@ -453,16 +459,20 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
       sum = _mm_add_epi16(sum, p);
 
       /*p = in[i*OD_FILT_BSTRIDE + offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
-       off2]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE + off2]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE + off2]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_add_epi16(p, p);
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
-       off2]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE - off2]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE - off2]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_add_epi16(p, p);
@@ -470,15 +480,19 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
       sum = _mm_add_epi16(sum, p);
 
       /*p = in[i*OD_FILT_BSTRIDE + offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE +
-       off3]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE + off3]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE + off3]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_and_si128(p, cmp);
       sum = _mm_add_epi16(sum, p);
       /*p = in[i*OD_FILT_BSTRIDE - offset] - row*/;
-      p = _mm_sub_epi16(_mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE -
-       off3]), row);
+      tmp = _mm_unpacklo_epi64(
+          _mm_loadl_epi64((__m128i*)&in[i*OD_FILT_BSTRIDE - off3]),
+          _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE - off3]));
+      p = _mm_sub_epi16(tmp, row);
       /*if (abs(p) < thresh) sum += taps[k]*p1*/
       cmp = od_cmplt_abs_epi16(p, thresh);
       p = _mm_and_si128(p, cmp);
@@ -489,6 +503,7 @@ void od_filter_dering_direction_4x4_sse2(int16_t *y, int ystride,
     res = _mm_srai_epi16(res, 4);
     res = _mm_add_epi16(row, res);
     _mm_storel_epi64((__m128i*)&y[i*ystride], res);
+    _mm_storel_epi64((__m128i*)&y[(i+1)*ystride], _mm_unpackhi_epi64(res, res));
   }
 }
 #endif
