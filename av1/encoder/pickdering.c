@@ -143,7 +143,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       best_tot_mse = tot_mse;
     }
   }
-  best_level = floor(.5 + .55*pow(av1_dc_quant(cm->base_qindex, 0, cm->bit_depth), 0.6));
+  best_level = floor(.5 + .65*pow(av1_dc_quant(cm->base_qindex, 0, cm->bit_depth), 0.6));
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int gi;
