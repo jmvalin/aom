@@ -17,6 +17,7 @@
 #include "av1/common/reconinter.h"
 #include "av1/encoder/encoder.h"
 #include "aom/aom_integer.h"
+#include <math.h>
 
 static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
                            int nhb, int nvb, int coeff_shift) {
@@ -142,6 +143,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       best_tot_mse = tot_mse;
     }
   }
+  best_level = floor(.5 + .55*pow(av1_dc_quant(cm->base_qindex, 0, cm->bit_depth), 0.6));
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int gi;
