@@ -50,7 +50,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
-  uint8_t *src[3];
   od_dering_in *dst[3];
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = { { 0 } };
@@ -71,26 +70,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   for (pli = 0; pli < 3; pli++) {
     dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * cm->mi_cols * 64);
   }
-#if 0
-  for (pli = 0; pli < 3; pli++) {
-    src[pli] = aom_malloc(sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
-    for (r = 0; r < bsize[pli] * cm->mi_rows; ++r) {
-      for (c = 0; c < bsize[pli] * cm->mi_cols; ++c) {
-#if CONFIG_AOM_HIGHBITDEPTH
-        if (cm->use_highbitdepth) {
-          src[pli][r * stride + c] = CONVERT_TO_SHORTPTR(
-              xd->plane[pli].dst.buf)[r * xd->plane[pli].dst.stride + c];
-        } else {
-#endif
-          src[pli][r * stride + c] =
-              xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c];
-#if CONFIG_AOM_HIGHBITDEPTH
-        }
-#endif
-      }
-    }
-  }
-#endif
   for (r = 0; r < cm->mi_rows; ++r) {
     for (c = 0; c < cm->mi_cols; ++c) {
       const MB_MODE_INFO *mbmi =
@@ -120,14 +99,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                   &dst[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
                             sbc * bsize[pli] * MAX_MIB_SIZE],
                   stride,
-#if 1
                   &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
                   xd->plane[pli].dst.stride,
-#else
-                  &src[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
-                            sbc * bsize[pli] * MAX_MIB_SIZE],
-                  stride,
-#endif
                   nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   &bskip[MAX_MIB_SIZE * sbr * cm->mi_cols + MAX_MIB_SIZE * sbc],
                   cm->mi_cols, threshold, coeff_shift);
