@@ -141,6 +141,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int dec[3];
   int pli;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
+  int dst_read, dst_write;
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   bskip = aom_malloc(sizeof(*bskip) * cm->mi_rows * cm->mi_cols);
@@ -151,7 +152,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
   stride = bsize[0] * cm->mi_cols;
   for (pli = 0; pli < 3; pli++) {
-    dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * cm->mi_cols * 64);
+    dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * (cm->mi_cols+7) * 64);
   }
   for (r = 0; r < cm->mi_rows; ++r) {
     for (c = 0; c < cm->mi_cols; ++c) {
@@ -160,6 +161,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       bskip[r * cm->mi_cols + c] = mbmi->skip;
     }
   }
+  dst_read = dst_write = 0;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
@@ -179,14 +181,14 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
         threshold = level << coeff_shift;
         od_dering(&OD_DERING_VTBL_C,
-                  &dst[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
-                            sbc * bsize[pli] * MAX_MIB_SIZE],
-                  stride,
+                  &dst[pli][dst_write],
+                  OD_BSIZE_MAX,
                   &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
                   xd->plane[pli].dst.stride,
                   nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   &bskip[MAX_MIB_SIZE * sbr * cm->mi_cols + MAX_MIB_SIZE * sbc],
                   cm->mi_cols, threshold, coeff_shift);
+        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
     }
   }
@@ -203,9 +205,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                                          (bsize[pli] * MAX_MIB_SIZE * sbr) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE],
                     xd->plane[pli].dst.stride,
-                    &dst[pli][sbr * bsize[pli] * MAX_MIB_SIZE * stride  +
-                              sbc * bsize[pli] * MAX_MIB_SIZE],
-                    stride,
+                    &dst[pli][dst_read],
+                    OD_BSIZE_MAX,
                     bsize[pli] * nvb, bsize[pli] * nhb);
 #else
         for (r = 0; r < bsize[pli] * nvb; ++r) {
@@ -230,6 +231,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
           }
         }
 #endif
+        dst_read += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
     }
   }
