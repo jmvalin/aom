@@ -50,7 +50,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
-  od_dering_in *src[3];
+  uint8_t *src[3];
   od_dering_in *dst[3];
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = { { 0 } };
@@ -71,6 +71,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   for (pli = 0; pli < 3; pli++) {
     dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * cm->mi_cols * 64);
   }
+#if 0
   for (pli = 0; pli < 3; pli++) {
     src[pli] = aom_malloc(sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     for (r = 0; r < bsize[pli] * cm->mi_rows; ++r) {
@@ -89,6 +90,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       }
     }
   }
+#endif
   for (r = 0; r < cm->mi_rows; ++r) {
     for (c = 0; c < cm->mi_cols; ++c) {
       const MB_MODE_INFO *mbmi =
@@ -118,9 +120,15 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                   &dst[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
                             sbc * bsize[pli] * MAX_MIB_SIZE],
                   stride,
+#if 1
+                  &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
+                  xd->plane[pli].dst.stride,
+#else
                   &src[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
                             sbc * bsize[pli] * MAX_MIB_SIZE],
-                  stride, nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
+                  stride,
+#endif
+                  nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   &bskip[MAX_MIB_SIZE * sbr * cm->mi_cols + MAX_MIB_SIZE * sbc],
                   cm->mi_cols, threshold, coeff_shift);
       }
@@ -159,7 +167,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     }
   }
   for (pli = 0; pli < 3; pli++) {
-    aom_free(src[pli]);
+    aom_free(dst[pli]);
   }
   aom_free(bskip);
 }

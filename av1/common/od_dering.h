@@ -44,7 +44,7 @@ struct od_dering_opt_vtbl {
 typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
-               const od_dering_in *x, int xstride, int nvb, int nhb, int sbx,
+               const uint8_t *x, int xstride, int nvb, int nhb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                unsigned char *bskip, int skip_stride, int threshold,

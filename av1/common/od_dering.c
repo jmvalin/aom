@@ -786,7 +786,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 }
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
-               const od_dering_in *x, int xstride, int nhb, int nvb, int sbx,
+               const uint8_t *x , int xstride, int nhb, int nvb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                unsigned char *bskip, int skip_stride, int threshold,
@@ -796,6 +796,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   int bx;
   int by;
   int16_t inbuf[OD_DERING_INBUF_SIZE];
+  int16_t xx[OD_FILT_BSTRIDE*OD_BSIZE_MAX];
   int16_t *in;
   int bsize;
   int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
@@ -821,6 +822,11 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       y[i * ystride + j] = in[i * OD_FILT_BSTRIDE + j];
     }
   }
+  for (i = 0; i < nvb << bsize; i++) {
+    for (j = 0; j < nhb << bsize; j++) {
+      xx[i * OD_FILT_BSTRIDE + j] = in[i * OD_FILT_BSTRIDE + j];
+    }
+  }
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
@@ -830,7 +836,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
           var[by][bx] = 0;
           continue;
         }
-        dir[by][bx] = od_dir_find8_sse2(&x[8 * by * xstride + 8 * bx], xstride,
+        dir[by][bx] = od_dir_find8_sse2(&in[8 * by * OD_FILT_BSTRIDE + 8 * bx], OD_FILT_BSTRIDE,
                                    &var[by][bx], coeff_shift);
       }
     }
@@ -867,7 +873,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       (vtbl->filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
           &y[(by * ystride << bsize) + (bx << bsize)], ystride,
           &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-          &x[(by * xstride << bsize) + (bx << bsize)], xstride, thresh[by][bx],
+          &xx[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], OD_FILT_BSTRIDE, thresh[by][bx],
           dir[by][bx]);
     }
   }
