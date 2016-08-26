@@ -51,6 +51,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int sbr, sbc;
   int nhsb, nvsb;
   od_dering_in *src[3];
+  od_dering_in *dst[3];
   unsigned char *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = { { 0 } };
   int stride;
@@ -67,6 +68,9 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     bsize[pli] = 8 >> dec[pli];
   }
   stride = bsize[0] * cm->mi_cols;
+  for (pli = 0; pli < 3; pli++) {
+    dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * cm->mi_cols * 64);
+  }
   for (pli = 0; pli < 3; pli++) {
     src[pli] = aom_malloc(sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     for (r = 0; r < bsize[pli] * cm->mi_rows; ++r) {
@@ -99,7 +103,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
       for (pli = 0; pli < 3; pli++) {
-        int16_t dst[MAX_MIB_SIZE * MAX_MIB_SIZE * 8 * 8];
         int threshold;
         level = compute_level_from_index(
             global_level,
@@ -111,12 +114,26 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         if (pli) level = (level * 5 + 4) >> 3;
         if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
         threshold = level << coeff_shift;
-        od_dering(&OD_DERING_VTBL_C, dst, MAX_MIB_SIZE * bsize[pli],
+        od_dering(&OD_DERING_VTBL_C,
+                  &dst[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
+                            sbc * bsize[pli] * MAX_MIB_SIZE],
+                  stride,
                   &src[pli][sbr * stride * bsize[pli] * MAX_MIB_SIZE +
                             sbc * bsize[pli] * MAX_MIB_SIZE],
                   stride, nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   &bskip[MAX_MIB_SIZE * sbr * cm->mi_cols + MAX_MIB_SIZE * sbc],
                   cm->mi_cols, threshold, coeff_shift);
+      }
+    }
+  }
+  /* Copy deringed blocks back. */
+  for (sbr = 0; sbr < nvsb; sbr++) {
+    for (sbc = 0; sbc < nhsb; sbc++) {
+      int nhb, nvb;
+      nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
+      nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
+      for (pli = 0; pli < 3; pli++) {
+        if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
         for (r = 0; r < bsize[pli] * nvb; ++r) {
           for (c = 0; c < bsize[pli] * nhb; ++c) {
 #if CONFIG_AOM_HIGHBITDEPTH
@@ -131,7 +148,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
               xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * sbr + r) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE + c] =
-                  dst[r * MAX_MIB_SIZE * bsize[pli] + c];
+                  dst[pli][(sbr * bsize[pli] * MAX_MIB_SIZE + r)* stride  +
+                            sbc * bsize[pli] * MAX_MIB_SIZE + c];
 #if CONFIG_AOM_HIGHBITDEPTH
             }
 #endif
