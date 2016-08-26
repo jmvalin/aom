@@ -785,6 +785,28 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
   }
 }
 
+
+static void copy_sb8_16(od_dering_in * restrict dst, int dstride, const uint8_t * restrict src,
+                        int sstride, int vsize, int hsize)
+{
+  int r, c;
+  {
+    for (r = 0; r < vsize; ++r) {
+      for (c = 0; c < hsize - 7; c+=8) {
+        __m128i tmp;
+        tmp = _mm_loadl_epi64((__m128i*)&src[c]);
+        tmp = _mm_cvtepu8_epi16(tmp);
+        _mm_storeu_si128((__m128i*)&dst[c], tmp);
+      }
+      for (; c < hsize; ++c) {
+        dst[c] = src[c];
+      }
+      src += sstride;
+      dst += dstride;
+    }
+  }
+}
+
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
                const uint8_t *x , int xstride, int nhb, int nvb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
@@ -808,6 +830,18 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
      add special cases for any future vectorization. */
   //for (i = 0; i < OD_DERING_INBUF_SIZE; i++) inbuf[i] = OD_DERING_VERY_LARGE;
   memset(inbuf, 117, OD_DERING_INBUF_SIZE*sizeof(inbuf[0]));
+#if 1
+  {
+    int ni, nj;
+    i = -OD_FILT_BORDER * (sby != 0);
+    j = -OD_FILT_BORDER * (sbx != 0);
+    ni = (nvb << bsize) + OD_FILT_BORDER * (sby != nvsb - 1) - i;
+    nj = (nhb << bsize) + OD_FILT_BORDER * (sbx != nhsb - 1) - j;
+    copy_sb8_16(&in[i * OD_FILT_BSTRIDE + j], OD_FILT_BSTRIDE,
+                &x[i * xstride + j], xstride,
+                ni, nj);
+  }
+#else
   for (i = -OD_FILT_BORDER * (sby != 0);
        i < (nvb << bsize) + OD_FILT_BORDER * (sby != nvsb - 1); i++) {
     for (j = -OD_FILT_BORDER * (sbx != 0);
@@ -815,6 +849,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       in[i * OD_FILT_BSTRIDE + j] = x[i * xstride + j];
     }
   }
+#endif
   /* Assume deringing filter is sparsely applied, so do one large copy rather
      than small copies later if deringing is skipped. */
   for (i = 0; i < nvb << bsize; i++) {
