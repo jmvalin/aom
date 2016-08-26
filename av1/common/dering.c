@@ -45,6 +45,18 @@ int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
   return skip;
 }
 
+static void copy_sb16_8(uint8_t *dst, int dstride, od_dering_in *src,
+                        int sstride, int vsize, int hsize)
+{
+  int r, c;
+  for (r = 0; r < vsize; ++r) {
+    for (c = 0; c < hsize; ++c) {
+        dst[dstride * r + c] = src[sstride * r + c];
+    }
+  }
+}
+
+
 void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                       MACROBLOCKD *xd, int global_level) {
   int r, c;
@@ -115,6 +127,16 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
       for (pli = 0; pli < 3; pli++) {
         if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
+#if 1
+        copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
+                                         (bsize[pli] * MAX_MIB_SIZE * sbr) +
+                                     sbc * bsize[pli] * MAX_MIB_SIZE],
+                    xd->plane[pli].dst.stride,
+                    &dst[pli][sbr * bsize[pli] * MAX_MIB_SIZE * stride  +
+                              sbc * bsize[pli] * MAX_MIB_SIZE],
+                    stride,
+                    bsize[pli] * nvb, bsize[pli] * nhb);
+#else
         for (r = 0; r < bsize[pli] * nvb; ++r) {
           for (c = 0; c < bsize[pli] * nhb; ++c) {
 #if CONFIG_AOM_HIGHBITDEPTH
@@ -136,6 +158,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 #endif
           }
         }
+#endif
       }
     }
   }
