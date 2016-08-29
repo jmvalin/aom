@@ -191,7 +191,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     dst_write = 0;
 
     for (sbc = 0; sbc < nhsb; sbc++) {
-      int level;
       int nhb, nvb;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
@@ -200,39 +199,41 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                       bskip[toggle*nhsb + sbc]);
       if (sbskip[toggle*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
-        int threshold;
-        level = compute_level_from_index(
-            global_level,
-            cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
-                                MAX_MIB_SIZE * sbc]
-                ->mbmi.dering_gain);
-        /* FIXME: This is a temporary hack that uses more conservative
-           deringing for chroma. */
-        if (pli) level = (level * 5 + 4) >> 3;
-        threshold = level << coeff_shift;
         od_inbuf_copy(&inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
             &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
-                              xd->plane[pli].dst.stride,
-                              3 - dec[pli], nvb, nhb, sbr, sbc, nvsb, nhsb);
-        od_dering(&OD_DERING_VTBL_C,
-                  &dst[pli][dst_write + toggle*linesize],
-                  OD_BSIZE_MAX,
-                  &inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
-                  nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
-                  bskip[toggle*nhsb + sbc],
-                  MAX_MIB_SIZE, threshold, coeff_shift);
-        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
+            xd->plane[pli].dst.stride,
+            3 - dec[pli], nvb, nhb, sbr, sbc, nvsb, nhsb);
       }
     }
 
     if (sbr<1) continue;
     dst_read = 0;
     for (sbc = 0; sbc < nhsb; sbc++) {
+      int level;
       int nhb, nvb;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * (sbr-1));
       if (sbskip[(1-toggle)*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
+        int threshold;
+        level = compute_level_from_index(
+            global_level,
+            cm->mi_grid_visible[MAX_MIB_SIZE * (sbr - 1) * cm->mi_stride +
+                                MAX_MIB_SIZE * sbc]
+                ->mbmi.dering_gain);
+        /* FIXME: This is a temporary hack that uses more conservative
+           deringing for chroma. */
+        if (pli) level = (level * 5 + 4) >> 3;
+        threshold = level << coeff_shift;
+        od_dering(&OD_DERING_VTBL_C,
+                  &dst[pli][dst_write + !toggle*linesize],
+                  OD_BSIZE_MAX,
+                  &inbuf[pli][(!toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+                  nhb, nvb, sbc, sbr - 1, nhsb, nvsb, dec[pli], dir, pli,
+                  bskip[!toggle*nhsb + sbc],
+                  MAX_MIB_SIZE, threshold, coeff_shift);
+        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
+
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * (sbr-1)) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE],
@@ -248,12 +249,33 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   /* Copy deringed blocks back. */
   for (sbr = nvsb-1; sbr < nvsb; sbr++) {
     dst_read = 0;
+    dst_write = 0;
     for (sbc = 0; sbc < nhsb; sbc++) {
+      int level;
       int nhb, nvb;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
+      if (sbskip[toggle*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
-        if (sbskip[toggle*nhsb + sbc]) continue;
+        int threshold;
+        level = compute_level_from_index(
+            global_level,
+            cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
+                                MAX_MIB_SIZE * sbc]
+                ->mbmi.dering_gain);
+        /* FIXME: This is a temporary hack that uses more conservative
+           deringing for chroma. */
+        if (pli) level = (level * 5 + 4) >> 3;
+        threshold = level << coeff_shift;
+        od_dering(&OD_DERING_VTBL_C,
+                  &dst[pli][dst_write + toggle*linesize],
+                  OD_BSIZE_MAX,
+                  &inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+                  nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
+                  bskip[toggle*nhsb + sbc],
+                  MAX_MIB_SIZE, threshold, coeff_shift);
+        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
+
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * sbr) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE],
