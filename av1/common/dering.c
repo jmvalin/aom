@@ -233,7 +233,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * (sbr-1));
       if (sbskip[(1-toggle)*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
-#if 1
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * (sbr-1)) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE],
@@ -241,29 +240,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     &dst[pli][dst_read + (!toggle)*linesize],
                     OD_BSIZE_MAX,
                     bsize[pli] * nvb, bsize[pli] * nhb);
-#else
-        for (r = 0; r < bsize[pli] * nvb; ++r) {
-          for (c = 0; c < bsize[pli] * nhb; ++c) {
-#if CONFIG_AOM_HIGHBITDEPTH
-            if (cm->use_highbitdepth) {
-              CONVERT_TO_SHORTPTR(xd->plane[pli].dst.buf)
-              [xd->plane[pli].dst.stride *
-                   (bsize[pli] * MAX_MIB_SIZE * sbr + r) +
-               sbc * bsize[pli] * MAX_MIB_SIZE + c] =
-                  dst[r * MAX_MIB_SIZE * bsize[pli] + c];
-            } else {
-#endif
-              xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
-                                         (bsize[pli] * MAX_MIB_SIZE * sbr + r) +
-                                     sbc * bsize[pli] * MAX_MIB_SIZE + c] =
-                  dst[pli][(sbr * bsize[pli] * MAX_MIB_SIZE + r)* stride  +
-                            sbc * bsize[pli] * MAX_MIB_SIZE + c];
-#if CONFIG_AOM_HIGHBITDEPTH
-            }
-#endif
-          }
-        }
-#endif
         dst_read += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
     }
@@ -278,7 +254,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
       for (pli = 0; pli < 3; pli++) {
         if (sbskip[toggle*nhsb + sbc]) continue;
-#if 1
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * sbr) +
                                      sbc * bsize[pli] * MAX_MIB_SIZE],
@@ -286,29 +261,6 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     &dst[pli][dst_read + toggle*linesize],
                     OD_BSIZE_MAX,
                     bsize[pli] * nvb, bsize[pli] * nhb);
-#else
-        for (r = 0; r < bsize[pli] * nvb; ++r) {
-          for (c = 0; c < bsize[pli] * nhb; ++c) {
-#if CONFIG_AOM_HIGHBITDEPTH
-            if (cm->use_highbitdepth) {
-              CONVERT_TO_SHORTPTR(xd->plane[pli].dst.buf)
-              [xd->plane[pli].dst.stride *
-                   (bsize[pli] * MAX_MIB_SIZE * sbr + r) +
-               sbc * bsize[pli] * MAX_MIB_SIZE + c] =
-                  dst[r * MAX_MIB_SIZE * bsize[pli] + c];
-            } else {
-#endif
-              xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
-                                         (bsize[pli] * MAX_MIB_SIZE * sbr + r) +
-                                     sbc * bsize[pli] * MAX_MIB_SIZE + c] =
-                  dst[pli][(sbr * bsize[pli] * MAX_MIB_SIZE + r)* stride  +
-                            sbc * bsize[pli] * MAX_MIB_SIZE + c];
-#if CONFIG_AOM_HIGHBITDEPTH
-            }
-#endif
-          }
-        }
-#endif
         dst_read += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
     }
