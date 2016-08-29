@@ -25,6 +25,8 @@ typedef int16_t od_dering_in;
 
 #define OD_FILT_BORDER (3)
 #define OD_FILT_BSTRIDE (OD_BSIZE_MAX + 2 * OD_FILT_BORDER)
+#define OD_DERING_INBUF_SIZE \
+  ((OD_BSIZE_MAX + 2 * OD_FILT_BORDER) * (OD_BSIZE_MAX + 2 * OD_FILT_BORDER))
 
 extern const int OD_DIRECTION_OFFSETS_TABLE[8][3];
 
@@ -43,8 +45,11 @@ struct od_dering_opt_vtbl {
 };
 typedef struct od_dering_opt_vtbl od_dering_opt_vtbl;
 
+void od_inbuf_copy(od_dering_in *inbuf, const uint8_t *x, int xstride,
+    int bsize, int nvb, int nhb, int sby, int sbx, int nvsb, int nhsb);
+
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
-               const uint8_t *x, int xstride, int nvb, int nhb, int sbx,
+               od_dering_in *inbuf, int nvb, int nhb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                int *bskip, int skip_stride, int threshold,

@@ -316,8 +316,6 @@ int od_dir_find8(const od_dering_in *img, int stride, int32_t *var,
 }
 
 #define OD_DERING_VERY_LARGE (30000)
-#define OD_DERING_INBUF_SIZE \
-  ((OD_BSIZE_MAX + 2 * OD_FILT_BORDER) * (OD_BSIZE_MAX + 2 * OD_FILT_BORDER))
 
 #ifdef ENABLE_SSE4_1
 
@@ -807,8 +805,26 @@ static void __attribute__ ((noinline)) copy_sb8_16(od_dering_in * restrict dst, 
   }
 }
 
+void od_inbuf_copy(od_dering_in *inbuf, const uint8_t *x, int xstride,
+    int bsize, int nvb, int nhb, int sby, int sbx, int nvsb, int nhsb) {
+  int ni, nj;
+  int i, j;
+  od_dering_in *in;
+  if (sby == 0 || sbx == 0 || sby == nvsb - 1 || sbx == nhsb - 1) {
+    memset(inbuf, 117, OD_DERING_INBUF_SIZE*sizeof(inbuf[0]));
+  }
+  in = inbuf + OD_FILT_BORDER * OD_FILT_BSTRIDE + OD_FILT_BORDER;
+  i = -OD_FILT_BORDER * (sby != 0);
+  j = -OD_FILT_BORDER * (sbx != 0);
+  ni = (nvb << bsize) + OD_FILT_BORDER * (sby != nvsb - 1) - i;
+  nj = (nhb << bsize) + OD_FILT_BORDER * (sbx != nhsb - 1) - j;
+  copy_sb8_16(&in[i * OD_FILT_BSTRIDE + j], OD_FILT_BSTRIDE,
+              &x[i * xstride + j], xstride,
+              ni, nj);
+}
+
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
-               const uint8_t *x , int xstride, int nhb, int nvb, int sbx,
+               od_dering_in *inbuf, int nhb, int nvb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                int *bskip, int skip_stride, int threshold,
@@ -817,7 +833,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   int j;
   int bx;
   int by;
-  int16_t inbuf[OD_DERING_INBUF_SIZE];
   int16_t xx[OD_FILT_BSTRIDE*OD_BSIZE_MAX];
   int16_t *in;
   int bsize;
@@ -825,33 +840,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
   bsize = 3 - xdec;
   in = inbuf + OD_FILT_BORDER * OD_FILT_BSTRIDE + OD_FILT_BORDER;
-  /* We avoid filtering the pixels for which some of the pixels to average
-     are outside the frame. We could change the filter instead, but it would
-     add special cases for any future vectorization. */
-  //for (i = 0; i < OD_DERING_INBUF_SIZE; i++) inbuf[i] = OD_DERING_VERY_LARGE;
-  if (sby == 0 || sbx == 0 || sby == nvsb - 1 || sbx == nhsb - 1) {
-  memset(inbuf, 117, OD_DERING_INBUF_SIZE*sizeof(inbuf[0]));
-  }
-#if 1
-  {
-    int ni, nj;
-    i = -OD_FILT_BORDER * (sby != 0);
-    j = -OD_FILT_BORDER * (sbx != 0);
-    ni = (nvb << bsize) + OD_FILT_BORDER * (sby != nvsb - 1) - i;
-    nj = (nhb << bsize) + OD_FILT_BORDER * (sbx != nhsb - 1) - j;
-    copy_sb8_16(&in[i * OD_FILT_BSTRIDE + j], OD_FILT_BSTRIDE,
-                &x[i * xstride + j], xstride,
-                ni, nj);
-  }
-#else
-  for (i = -OD_FILT_BORDER * (sby != 0);
-       i < (nvb << bsize) + OD_FILT_BORDER * (sby != nvsb - 1); i++) {
-    for (j = -OD_FILT_BORDER * (sbx != 0);
-         j < (nhb << bsize) + OD_FILT_BORDER * (sbx != nhsb - 1); j++) {
-      in[i * OD_FILT_BSTRIDE + j] = x[i * xstride + j];
-    }
-  }
-#endif
   /* Assume deringing filter is sparsely applied, so do one large copy rather
      than small copies later if deringing is skipped. */
   for (i = 0; i < nvb << bsize; i++) {

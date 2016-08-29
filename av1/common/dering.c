@@ -169,6 +169,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int linesize;
   int *sbskip;
   int (*bskip)[MAX_MIB_SIZE*MAX_MIB_SIZE];
+  od_dering_in *inbuf[3];
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
@@ -179,6 +180,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   stride = bsize[0] * cm->mi_cols;
   for (pli = 0; pli < 3; pli++) {
     dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * (cm->mi_cols+7) * 64);
+    inbuf[pli] = aom_malloc(sizeof(inbuf[0][0]) * nhsb * OD_DERING_INBUF_SIZE *
+        2);
   }
   sbskip = aom_malloc(sizeof(*sbskip) * nhsb * 2);
   bskip = aom_malloc(sizeof(*bskip) * nhsb * 2);
@@ -207,11 +210,14 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
            deringing for chroma. */
         if (pli) level = (level * 5 + 4) >> 3;
         threshold = level << coeff_shift;
+        od_inbuf_copy(&inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+            &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
+                              xd->plane[pli].dst.stride,
+                              3 - dec[pli], nvb, nhb, sbr, sbc, nvsb, nhsb);
         od_dering(&OD_DERING_VTBL_C,
                   &dst[pli][dst_write + toggle*linesize],
                   OD_BSIZE_MAX,
-                  &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
-                  xd->plane[pli].dst.stride,
+                  &inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
                   nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   bskip[toggle*nhsb + sbc],
                   MAX_MIB_SIZE, threshold, coeff_shift);
@@ -309,6 +315,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
   for (pli = 0; pli < 3; pli++) {
     aom_free(dst[pli]);
+    aom_free(inbuf[pli]);
   }
   aom_free(bskip);
   aom_free(sbskip);
