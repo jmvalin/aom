@@ -554,8 +554,23 @@ void od_filter_dering_direction_8x8_c(int16_t *y, int ystride,
 
 #ifdef ENABLE_SSE4_1
 
+static INLINE __m128i od_load_dering_type(__m128i *p) {
+  __m128i tmp;
+  tmp = _mm_loadl_epi64(p);
+  tmp = _mm_cvtepu8_epi16(tmp);
+  return tmp;
+}
+
+static INLINE __m128i od_load_dering_type4(__m128i *p) {
+  __m128i tmp;
+  /* FIXME: we should only load 32 bits, not 64 bits. How? */
+  tmp = _mm_loadl_epi64(p);
+  tmp = _mm_cvtepu8_epi16(tmp);
+  return tmp;
+}
+
 void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+ const int16_t *in, const dering_type *x, int xstride, int threshold, int dir) {
   int i;
   int offset;
   __m128i res;
@@ -573,8 +588,8 @@ void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
         _mm_loadl_epi64((__m128i*)&in[(i+1)*OD_FILT_BSTRIDE]));
     /*thresh = OD_MINI(threshold, threshold/3
        + abs(in[i*OD_FILT_BSTRIDE] - x[i*xstride]))*/
-    tmp = _mm_unpacklo_epi64(_mm_loadl_epi64((__m128i*)&x[i*xstride]),
-        _mm_loadl_epi64((__m128i*)&x[(i+1)*xstride]));
+    tmp = _mm_unpacklo_epi64(od_load_dering_type4((__m128i*)&x[i*xstride]),
+        od_load_dering_type4((__m128i*)&x[(i+1)*xstride]));
     thresh = _mm_min_epi16(_mm_set1_epi16(threshold),
      _mm_add_epi16(_mm_set1_epi16(threshold/3),
      _mm_abs_epi16(_mm_sub_epi16(row,
@@ -629,7 +644,7 @@ void od_filter_dering_orthogonal_4x4_sse2(int16_t *y, int ystride,
 }
 
 void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
- const int16_t *in, const int16_t *x, int xstride, int threshold, int dir) {
+ const int16_t *in, const dering_type *x, int xstride, int threshold, int dir) {
   int i;
   int offset;
   __m128i res;
@@ -648,7 +663,7 @@ void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
     thresh = _mm_min_epi16(_mm_set1_epi16(threshold),
      _mm_add_epi16(_mm_set1_epi16(threshold/3),
      _mm_abs_epi16(_mm_sub_epi16(row,
-     _mm_loadu_si128((__m128i*)&x[i*xstride])))));
+     od_load_dering_type((__m128i*)&x[i*xstride])))));
 
       /*p = in[i*OD_FILT_BSTRIDE + k*offset] - row*/
       p = _mm_sub_epi16(_mm_loadu_si128((__m128i*)&in[i*OD_FILT_BSTRIDE +
@@ -692,7 +707,7 @@ void od_filter_dering_orthogonal_8x8_sse2(int16_t *y, int ystride,
 
 /* Smooth in the direction orthogonal to what was detected. */
 void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
-                                   const od_dering_in *x, int xstride, int ln,
+                                   const dering_type *x, int xstride, int ln,
                                    int threshold, int dir) {
   int i;
   int j;
@@ -717,7 +732,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
          get removed by the directional filtering. */
       athresh = OD_MINI(
           threshold, threshold / 3 +
-                         abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]));
+                         abs(in[i * OD_FILT_BSTRIDE + j] - (int)x[i * xstride + j]));
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
@@ -734,7 +749,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
 }
 
 void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
-                                       const int16_t *in, const od_dering_in *x,
+                                       const int16_t *in, const dering_type *x,
                                        int xstride, int threshold, int dir) {
 #ifdef ENABLE_SSE4_1
   od_filter_dering_orthogonal_4x4_sse2(y, ystride, in, x, xstride, threshold, dir);
@@ -744,7 +759,7 @@ void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
 }
 
 void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
-                                       const int16_t *in, const od_dering_in *x,
+                                       const int16_t *in, const dering_type *x,
                                        int xstride, int threshold, int dir) {
 #ifdef ENABLE_SSE4_1
   od_filter_dering_orthogonal_8x8_sse2(y, ystride, in, x, xstride, threshold, dir);
@@ -824,7 +839,7 @@ void od_inbuf_copy(od_dering_in *inbuf, const uint8_t *x, int xstride,
 }
 
 void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
-               od_dering_in *inbuf, int nhb, int nvb, int sbx,
+               od_dering_in *inbuf, dering_type *x, int xstride, int nhb, int nvb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                int *bskip, int skip_stride, int threshold,
@@ -833,7 +848,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   int j;
   int bx;
   int by;
-  int16_t xx[OD_FILT_BSTRIDE*OD_BSIZE_MAX];
   int16_t *in;
   int bsize;
   int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
@@ -847,7 +861,6 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       y[i * ystride + j] = in[i * OD_FILT_BSTRIDE + j];
     }
   }
-  memcpy(xx, in, OD_FILT_BSTRIDE*(nvb << bsize)*sizeof(xx[0]));
   if (pli == 0) {
     memset(dir, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(dir[0][0]));
     memset(var, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(var[0][0]));
@@ -892,7 +905,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       (vtbl->filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
           &y[(by * ystride << bsize) + (bx << bsize)], ystride,
           &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-          &xx[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], OD_FILT_BSTRIDE, thresh[by][bx],
+          &x[(by * xstride << bsize) + (bx << bsize)], xstride, thresh[by][bx],
           dir[by][bx]);
     }
   }
