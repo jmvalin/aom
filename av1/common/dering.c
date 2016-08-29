@@ -164,7 +164,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int dec[3];
   int pli;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
-  int dst_read, dst_write;
+  int in_read, in_write;
   int toggle = 0;
   int linesize;
   int *sbskip;
@@ -187,7 +187,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   linesize = cm->mi_rows * (cm->mi_cols+7) * 64/2;
   for (sbr = 0; sbr < nvsb; sbr++) {
     toggle = sbr&1;
-    dst_write = 0;
+    in_write = 0;
 
     for (sbc = 0; sbc < nhsb; sbc++) {
       int nhb, nvb;
@@ -198,15 +198,16 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                       bskip[toggle*nhsb + sbc]);
       if (sbskip[toggle*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
-        od_inbuf_copy(&inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+        od_inbuf_copy(&inbuf[pli][toggle * nhsb * OD_DERING_INBUF_SIZE + in_write],
             &xd->plane[pli].dst.buf[sbr * bsize[pli] * MAX_MIB_SIZE * xd->plane[pli].dst.stride + sbc * bsize[pli] * MAX_MIB_SIZE],
             xd->plane[pli].dst.stride,
             3 - dec[pli], nvb, nhb, sbr, sbc, nvsb, nhsb);
       }
+      in_write += OD_DERING_INBUF_SIZE;
     }
 
     if (sbr<1) continue;
-    dst_read = 0;
+    in_read = 0;
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
       int nhb, nvb;
@@ -227,11 +228,10 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         od_dering(&OD_DERING_VTBL_C,
                   dst,
                   OD_BSIZE_MAX,
-                  &inbuf[pli][(!toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+                  &inbuf[pli][!toggle * nhsb * OD_DERING_INBUF_SIZE + in_read],
                   nhb, nvb, sbc, sbr - 1, nhsb, nvsb, dec[pli], dir, pli,
                   bskip[!toggle*nhsb + sbc],
                   MAX_MIB_SIZE, threshold, coeff_shift);
-        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
 
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * (sbr-1)) +
@@ -240,15 +240,14 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     dst,
                     OD_BSIZE_MAX,
                     bsize[pli] * nvb, bsize[pli] * nhb);
-        dst_read += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
+      in_read += OD_DERING_INBUF_SIZE;
     }
 
   }
   /* Copy deringed blocks back. */
   for (sbr = nvsb-1; sbr < nvsb; sbr++) {
-    dst_read = 0;
-    dst_write = 0;
+    in_read = 0;
     for (sbc = 0; sbc < nhsb; sbc++) {
       int level;
       int nhb, nvb;
@@ -269,11 +268,10 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         od_dering(&OD_DERING_VTBL_C,
                   dst,
                   OD_BSIZE_MAX,
-                  &inbuf[pli][(toggle * nhsb + sbc) * OD_DERING_INBUF_SIZE],
+                  &inbuf[pli][toggle * nhsb * OD_DERING_INBUF_SIZE + in_read],
                   nhb, nvb, sbc, sbr, nhsb, nvsb, dec[pli], dir, pli,
                   bskip[toggle*nhsb + sbc],
                   MAX_MIB_SIZE, threshold, coeff_shift);
-        dst_write += OD_BSIZE_MAX*OD_BSIZE_MAX;
 
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * sbr) +
@@ -282,8 +280,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                     dst,
                     OD_BSIZE_MAX,
                     bsize[pli] * nvb, bsize[pli] * nhb);
-        dst_read += OD_BSIZE_MAX*OD_BSIZE_MAX;
       }
+      in_read += OD_DERING_INBUF_SIZE;
     }
   }
   for (pli = 0; pli < 3; pli++) {
