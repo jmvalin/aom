@@ -786,7 +786,7 @@ static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
 }
 
 
-static void copy_sb8_16(od_dering_in * restrict dst, int dstride, const uint8_t * restrict src,
+static void __attribute__ ((noinline)) copy_sb8_16(od_dering_in * restrict dst, int dstride, const uint8_t * restrict src,
                         int sstride, int vsize, int hsize)
 {
   int r, c;
@@ -861,29 +861,27 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   }
   memcpy(xx, in, OD_FILT_BSTRIDE*(nvb << bsize)*sizeof(xx[0]));
   if (pli == 0) {
+    memset(dir, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(dir[0][0]));
+    memset(var, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(var[0][0]));
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
-        if (bskip[by * skip_stride + bx])
-        {
-          dir[by][bx] = 0;
-          var[by][bx] = 0;
-          continue;
-        }
-        dir[by][bx] = od_dir_find8_sse2(&in[8 * by * OD_FILT_BSTRIDE + 8 * bx], OD_FILT_BSTRIDE,
+        if (!bskip[by * skip_stride + bx]){
+          dir[by][bx] = od_dir_find8_sse2(&in[8 * by * OD_FILT_BSTRIDE + 8 * bx], OD_FILT_BSTRIDE,
                                    &var[by][bx], coeff_shift);
+        }
       }
     }
     od_compute_thresh(thresh, threshold, var, nhb, nvb);
+    for (by = 0; by < nvb; by++) {
+      for (bx = 0; bx < nhb; bx++) {
+        if (bskip[by * skip_stride + bx]) thresh[by][bx] = 0;
+      }
+    }
   } else {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
-        thresh[by][bx] = threshold;
+        thresh[by][bx] = bskip[by * skip_stride + bx] ? 0 : threshold;
       }
-    }
-  }
-  for (by = 0; by < nvb; by++) {
-    for (bx = 0; bx < nhb; bx++) {
-      if (bskip[by * skip_stride + bx]) thresh[by][bx] = 0;
     }
   }
   for (by = 0; by < nvb; by++) {
