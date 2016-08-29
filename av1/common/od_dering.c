@@ -776,28 +776,19 @@ static const int16_t OD_THRESH_TABLE_Q8[18] = {
   327, 365, 408, 455, 509, 569, 635, 710, 768,
 };
 
-/* Compute deringing filter threshold for each 8x8 block based on the
+
+/* Compute deringing filter threshold for an 8x8 block based on the
    directional variance difference. A high variance difference means that we
    have a highly directional pattern (e.g. a high contrast edge), so we can
    apply more deringing. A low variance means that we either have a low
    contrast edge, or a non-directional texture, so we want to be careful not
    to blur. */
-static void od_compute_thresh(int thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
-                              int threshold,
-                              int32_t var[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS],
-                              int nhb, int nvb) {
-  int bx;
-  int by;
-  for (by = 0; by < nvb; by++) {
-    for (bx = 0; bx < nhb; bx++) {
-      int v1;
-      /* We use the variance of 8x8 blocks to adjust the threshold. */
-      v1 = OD_MINI(32767, var[by][bx] >> 6);
-      thresh[by][bx] = (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8;
-    }
-  }
+static INLINE int od_adjust_thresh(int threshold, int32_t var) {
+  int v1;
+  /* We use the variance of 8x8 blocks to adjust the threshold. */
+  v1 = OD_MINI(32767, var >> 6);
+  return (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8;
 }
-
 
 static void __attribute__ ((noinline)) copy_sb8_16(od_dering_in * restrict dst, int dstride, const uint8_t * restrict src,
                         int sstride, int vsize, int hsize)
@@ -862,36 +853,28 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
     }
   }
   if (pli == 0) {
-    memset(dir, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(dir[0][0]));
-    memset(var, 0, OD_DERING_NBLOCKS*OD_DERING_NBLOCKS*sizeof(var[0][0]));
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
-        if (!bskip[by * skip_stride + bx]){
+        if (!bskip[by * skip_stride + bx]) {
           dir[by][bx] = od_dir_find8_sse2(&in[8 * by * OD_FILT_BSTRIDE + 8 * bx], OD_FILT_BSTRIDE,
                                    &var[by][bx], coeff_shift);
+          thresh[by][bx] = od_adjust_thresh(threshold, var[by][bx]);
+          (vtbl->filter_dering_direction[bsize - OD_LOG_BSIZE0])(
+              &y[(by * ystride << bsize) + (bx << bsize)], ystride,
+              &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], thresh[by][bx],
+              dir[by][bx]);
         }
-      }
-    }
-    od_compute_thresh(thresh, threshold, var, nhb, nvb);
-    for (by = 0; by < nvb; by++) {
-      for (bx = 0; bx < nhb; bx++) {
-        if (bskip[by * skip_stride + bx]) thresh[by][bx] = 0;
       }
     }
   } else {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
         thresh[by][bx] = bskip[by * skip_stride + bx] ? 0 : threshold;
+        (vtbl->filter_dering_direction[bsize - OD_LOG_BSIZE0])(
+            &y[(by * ystride << bsize) + (bx << bsize)], ystride,
+            &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], thresh[by][bx],
+            dir[by][bx]);
       }
-    }
-  }
-  for (by = 0; by < nvb; by++) {
-    for (bx = 0; bx < nhb; bx++) {
-      if (thresh[by][bx] == 0) continue;
-      (vtbl->filter_dering_direction[bsize - OD_LOG_BSIZE0])(
-          &y[(by * ystride << bsize) + (bx << bsize)], ystride,
-          &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], thresh[by][bx],
-          dir[by][bx]);
     }
   }
   for (i = 0; i < nvb << bsize; i++) {
@@ -901,7 +884,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
   }
   for (by = 0; by < nvb; by++) {
     for (bx = 0; bx < nhb; bx++) {
-      if (thresh[by][bx] == 0) continue;
+      if (bskip[by * skip_stride + bx]) continue;
       (vtbl->filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
           &y[(by * ystride << bsize) + (bx << bsize)], ystride,
           &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
