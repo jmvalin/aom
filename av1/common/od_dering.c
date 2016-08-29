@@ -859,11 +859,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
       y[i * ystride + j] = in[i * OD_FILT_BSTRIDE + j];
     }
   }
-  for (i = 0; i < nvb << bsize; i++) {
-    for (j = 0; j < nhb << bsize; j++) {
-      xx[i * OD_FILT_BSTRIDE + j] = in[i * OD_FILT_BSTRIDE + j];
-    }
-  }
+  memcpy(xx, in, OD_FILT_BSTRIDE*(nvb << bsize)*sizeof(xx[0]));
   if (pli == 0) {
     for (by = 0; by < nvb; by++) {
       for (bx = 0; bx < nhb; bx++) {
