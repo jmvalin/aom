@@ -811,7 +811,7 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
                const uint8_t *x , int xstride, int nhb, int nvb, int sbx,
                int sby, int nhsb, int nvsb, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
-               unsigned char *bskip, int skip_stride, int threshold,
+               int *bskip, int skip_stride, int threshold,
                int coeff_shift) {
   int i;
   int j;

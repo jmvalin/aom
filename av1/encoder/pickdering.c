@@ -41,7 +41,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int nhsb, nvsb;
   uint8_t *src;
   int16_t *ref_coeff;
-  unsigned char *bskip;
+  int *bskip;
   int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS] = { { 0 } };
   int stride;
   int bsize[3];
