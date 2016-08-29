@@ -144,6 +144,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int dst_read, dst_write;
   int toggle = 0;
   int linesize;
+  int *sbskip;
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   bskip = aom_malloc(sizeof(*bskip) * cm->mi_rows * cm->mi_cols);
@@ -156,6 +157,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   for (pli = 0; pli < 3; pli++) {
     dst[pli] = aom_malloc(sizeof(*dst) * cm->mi_rows * (cm->mi_cols+7) * 64);
   }
+  sbskip = aom_malloc(sizeof(*sbskip) * nhsb * 2);
   for (r = 0; r < cm->mi_rows; ++r) {
     for (c = 0; c < cm->mi_cols; ++c) {
       const MB_MODE_INFO *mbmi =
@@ -173,7 +175,9 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       int nhb, nvb;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
-      if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
+      sbskip[toggle*nhsb + sbc] =
+          sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE);
+      if (sbskip[toggle*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
         int threshold;
         level = compute_level_from_index(
@@ -203,7 +207,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       int nhb, nvb;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * (sbr-1));
-      if (sb_all_skip(cm, (sbr-1) * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
+      if (sbskip[(1-toggle)*nhsb + sbc]) continue;
       for (pli = 0; pli < 3; pli++) {
 #if 1
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
@@ -249,7 +253,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
       for (pli = 0; pli < 3; pli++) {
-        if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
+        if (sbskip[toggle*nhsb + sbc]) continue;
 #if 1
         copy_sb16_8(&xd->plane[pli].dst.buf[xd->plane[pli].dst.stride *
                                          (bsize[pli] * MAX_MIB_SIZE * sbr) +
