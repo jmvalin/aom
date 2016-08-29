@@ -829,7 +829,9 @@ void od_dering(const od_dering_opt_vtbl *vtbl, int16_t *y, int ystride,
      are outside the frame. We could change the filter instead, but it would
      add special cases for any future vectorization. */
   //for (i = 0; i < OD_DERING_INBUF_SIZE; i++) inbuf[i] = OD_DERING_VERY_LARGE;
+  if (sby == 0 || sbx == 0 || sby == nvsb - 1 || sbx == nhsb - 1) {
   memset(inbuf, 117, OD_DERING_INBUF_SIZE*sizeof(inbuf[0]));
+  }
 #if 1
   {
     int ni, nj;
