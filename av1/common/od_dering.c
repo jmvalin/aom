@@ -123,7 +123,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
   int i;
   int j;
   int k;
-  static const int taps[3] = { 3, 2, 1 };
+  static const int taps[3] = { 7, 3, 1 };
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
       int16_t sum;
@@ -141,7 +141,7 @@ void od_filter_dering_direction_c(int16_t *y, int ystride, const int16_t *in,
         if (abs(p0) < threshold) sum += taps[k] * p0;
         if (abs(p1) < threshold) sum += taps[k] * p1;
       }
-      yy = xx + ((sum + 8) >> 4);
+      yy = xx + ((sum + 16) >> 5);
       y[i * ystride + j] = yy;
     }
   }
