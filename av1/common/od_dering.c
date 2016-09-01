@@ -190,14 +190,14 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < athresh) sum += 4*p;
       p = in[i * OD_FILT_BSTRIDE + j - offset] - yy;
-      if (abs(p) < athresh) sum += p;
+      if (abs(p) < athresh) sum += 4*p;
       p = in[i * OD_FILT_BSTRIDE + j + 2 * offset] - yy;
       if (abs(p) < athresh) sum += p;
       p = in[i * OD_FILT_BSTRIDE + j - 2 * offset] - yy;
       if (abs(p) < athresh) sum += p;
-      y[i * ystride + j] = yy + ((3 * sum + 8) >> 4);
+      y[i * ystride + j] = yy + ((sum + 8) >> 4);
     }
   }
 }
