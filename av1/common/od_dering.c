@@ -177,7 +177,7 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
       foo += abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]);
     }
   }
-  foo = (foo + (1<<2*ln>>5)) >> (2*ln-4);
+  foo = (foo + (1<<2*ln>>1)) >> (2*ln);
   //printf("%d %d\n", foo, threshold);
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
@@ -200,8 +200,8 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
 #else
       //athresh = 2*foo + abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]);
       athresh = OD_MINI(
-          64, foo / 4 +
-                         0*abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]));
+          threshold, threshold / 3 +
+                         foo);
 #endif
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
