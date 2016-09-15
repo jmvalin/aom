@@ -166,10 +166,18 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
   int i;
   int j;
   int offset;
+  int foo=0;
   if (dir > 0 && dir < 4)
     offset = OD_FILT_BSTRIDE;
   else
     offset = 1;
+  for (i = 0; i < 1 << ln; i++) {
+    for (j = 0; j < 1 << ln; j++) {
+      foo += abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]);
+    }
+  }
+  foo = (foo + (1<<2*ln>>5)) >> (2*ln-4);
+  //printf("%d %d\n", foo, threshold);
   for (i = 0; i < 1 << ln; i++) {
     for (j = 0; j < 1 << ln; j++) {
       int16_t athresh;
@@ -184,9 +192,16 @@ void od_filter_dering_orthogonal_c(int16_t *y, int ystride, const int16_t *in,
          to be a little bit more aggressive on pure horizontal/vertical
          since the ringing there tends to be directional, so it doesn't
          get removed by the directional filtering. */
+#if 0
       athresh = OD_MINI(
           threshold, threshold / 3 +
                          abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]));
+#else
+      //athresh = 2*foo + abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]);
+      athresh = OD_MINI(
+          64, foo / 4 +
+                         0*abs(in[i * OD_FILT_BSTRIDE + j] - x[i * xstride + j]));
+#endif
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
