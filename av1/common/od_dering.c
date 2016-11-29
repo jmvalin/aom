@@ -110,11 +110,11 @@ int od_dir_find8_c(const int16_t *img, int stride, int32_t *var,
 }
 
 static int od_dering_func(int x, int width) {
-  return OD_CLAMPI(OD_MINI(-width-(x>>1),-1), x, OD_MAXI(width-(x>>1),1));
+  return OD_CLAMPI(OD_MINI(-width-(x>>1),-0), x, OD_MAXI(width-(x>>1),0));
 }
 
 static int od_dering_func2(int x, int width) {
-  return OD_CLAMPI(OD_MINI(-width-(x>>2),-1), x, OD_MAXI(width-(x>>2),1));
+  return OD_CLAMPI(OD_MINI(-width-(x>>2),-0), x, OD_MAXI(width-(x>>2),0));
 }
 
 /* Smooth in the direction detected. */
