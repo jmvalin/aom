@@ -114,7 +114,7 @@ static int od_dering_func(int x, int width) {
 }
 
 static int od_dering_func2(int x, int width) {
-  return OD_CLAMPI(OD_MINI(-width-(x>>2),-0), x, OD_MAXI(width-(x>>2),0));
+  return OD_CLAMPI(OD_MINI(-width-(x>>2),-2), x, OD_MAXI(width-(x>>2),2));
 }
 
 /* Smooth in the direction detected. */
