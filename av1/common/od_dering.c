@@ -109,6 +109,9 @@ int od_dir_find8_c(const int16_t *img, int stride, int32_t *var,
   return best_dir;
 }
 
+int od_dering_func(int x, int width) {
+  return OD_CLAMPI(OD_MINI(-2*width-x,-1), x, OD_MAXI(2*width-x,1));
+}
 /* Smooth in the direction detected. */
 int od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,
                                      int threshold, int dir) {
@@ -131,8 +134,8 @@ int od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,
              xx;
         p1 = in[i * OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]] -
              xx;
-        if (abs(p0) < threshold) sum += taps[k] * p0;
-        if (abs(p1) < threshold) sum += taps[k] * p1;
+        sum += taps[k] * od_dering_func(p0, threshold);
+        sum += taps[k] * od_dering_func(p1, threshold);
       }
       sum = (sum + 8) >> 4;
       total_abs += abs(sum);
@@ -165,8 +168,8 @@ int od_filter_dering_direction_4x4_c(int16_t *y, int ystride, const int16_t *in,
              xx;
         p1 = in[i * OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]] -
              xx;
-        if (abs(p0) < threshold) sum += taps[k] * p0;
-        if (abs(p1) < threshold) sum += taps[k] * p1;
+        sum += taps[k] * od_dering_func(p0, threshold);
+        sum += taps[k] * od_dering_func(p1, threshold);
       }
       sum = (sum + 8) >> 4;
       total_abs += abs(sum);
@@ -196,13 +199,13 @@ void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j + 2 * offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - 2 * offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       y[i * ystride + j] = yy + ((3 * sum + 8) >> 4);
     }
   }
@@ -227,9 +230,9 @@ void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - offset] - yy;
-      if (abs(p) < threshold) sum += p;
+      sum += od_dering_func(p, threshold);
       y[i * ystride + j] = yy + ((5 * sum + 8) >> 4);
     }
   }
@@ -302,10 +305,10 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
   int bsize;
   int filter2_thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
   od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES] = {
-    od_filter_dering_direction_4x4, od_filter_dering_direction_8x8
+    od_filter_dering_direction_4x4_c, od_filter_dering_direction_8x8_c
   };
   od_filter_dering_orthogonal_func filter_dering_orthogonal[OD_DERINGSIZES] = {
-    od_filter_dering_orthogonal_4x4, od_filter_dering_orthogonal_8x8
+    od_filter_dering_orthogonal_4x4_c, od_filter_dering_orthogonal_8x8_c
   };
   bsize = OD_DERING_SIZE_LOG2 - xdec;
   if (pli == 0) {
