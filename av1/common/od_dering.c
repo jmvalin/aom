@@ -109,13 +109,29 @@ int od_dir_find8_c(const int16_t *img, int stride, int32_t *var,
   return best_dir;
 }
 
+#if 1
 static int od_dering_func(int x, int width) {
-  return OD_CLAMPI(OD_MINI(-width-(x>>1),-0), x, OD_MAXI(width-(x>>1),0));
+  int tmp;
+  int shift;
+  if (width==0) return 0;
+  tmp = (4*x+(width>>1))/width;
+  tmp *= tmp;
+  shift = OD_MINI(30, (tmp+8)>>4);
+  return (x+(1<<shift>>1)) >> shift;
 }
-
-static int od_dering_func2(int x, int width) {
-  return OD_CLAMPI(OD_MINI(-width-(x>>2),-2), x, OD_MAXI(width-(x>>2),2));
+#else
+static int od_dering_func(int x, int width) {
+  int tmp;
+  int shift;
+  int w_1;
+  if (width==0) return 0;
+  w_1 = (64+width/2)/width;
+  tmp = x*w_1;
+  tmp *= tmp;
+  shift = OD_MINI(30, (tmp+2048)>>12);
+  return (x+(1<<shift>>1)) >> shift;
 }
+#endif
 
 /* Smooth in the direction detected. */
 int od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,
@@ -204,13 +220,13 @@ void od_filter_dering_orthogonal_8x8_c(int16_t *y, int ystride,
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j + 2 * offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - 2 * offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       y[i * ystride + j] = yy + ((3 * sum + 8) >> 4);
     }
   }
@@ -235,9 +251,9 @@ void od_filter_dering_orthogonal_4x4_c(int16_t *y, int ystride,
       yy = in[i * OD_FILT_BSTRIDE + j];
       sum = 0;
       p = in[i * OD_FILT_BSTRIDE + j + offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       p = in[i * OD_FILT_BSTRIDE + j - offset] - yy;
-      sum += od_dering_func2(p, threshold);
+      sum += od_dering_func(p, threshold);
       y[i * ystride + j] = yy + ((5 * sum + 8) >> 4);
     }
   }
