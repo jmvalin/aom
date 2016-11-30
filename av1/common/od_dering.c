@@ -109,7 +109,7 @@ int od_dir_find8_c(const int16_t *img, int stride, int32_t *var,
   return best_dir;
 }
 
-#if 1
+#if 0
 static int od_dering_func(int x, int width) {
   int tmp;
   int shift;
