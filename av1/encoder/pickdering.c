@@ -86,7 +86,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   best_level = AOMMIN(
       MAX_DERING_LEVEL - 1,
       (int)floor(.5 +
-                 .3 * pow(av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >>
+                 .55 * pow(av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >>
                                (cm->bit_depth - 8),
                            0.6)));
   for (sbr = 0; sbr < nvsb; sbr++) {
