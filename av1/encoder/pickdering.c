@@ -34,6 +34,162 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
+static int od_compute_var_4x4(od_coeff *x, int stride) {
+  int sum;
+  int s2;
+  int i;
+  sum = 0;
+  s2 = 0;
+  for (i = 0; i < 4; i++) {
+    int j;
+    for (j = 0; j < 4; j++) {
+      int t;
+
+      t = x[i * stride + j];
+      sum += t;
+      s2 += t * t;
+    }
+  }
+  // TODO(yushin) : Check wheter any changes are required for high bit depth.
+  return (s2 - (sum * sum >> 4)) >> 4;
+}
+
+/* OD_DIST_LP_MID controls the frequency weighting filter used for computing
+   the distortion. For a value X, the filter is [1 X 1]/(X + 2) and
+   is applied both horizontally and vertically. For X=5, the filter is
+   a good approximation for the OD_QM8_Q4_HVS quantization matrix. */
+#define OD_DIST_LP_MID (5)
+#define OD_DIST_LP_NORM (OD_DIST_LP_MID + 2)
+
+static double od_compute_dist_8x8(od_coeff *x,
+                                  od_coeff *y, od_coeff *e_lp, int stride) {
+  double sum;
+  int min_var;
+  double mean_var;
+  double var_stat;
+  double activity;
+  double calibration;
+  int i;
+  int j;
+  double vardist;
+
+  vardist = 0;
+#if 1
+  min_var = INT_MAX;
+  mean_var = 0;
+  for (i = 0; i < 3; i++) {
+    for (j = 0; j < 3; j++) {
+      int varx;
+      int vary;
+      varx = od_compute_var_4x4(x + 2 * i * stride + 2 * j, stride);
+      vary = od_compute_var_4x4(y + 2 * i * stride + 2 * j, stride);
+      min_var = OD_MINI(min_var, varx);
+      mean_var += 1. / (1 + varx);
+      /* The cast to (double) is to avoid an overflow before the sqrt.*/
+      vardist += varx - 2 * sqrt(varx * (double)vary) + vary;
+    }
+  }
+  /* We use a different variance statistic depending on whether activity
+     masking is used, since the harmonic mean appeared slghtly worse with
+     masking off. The calibration constant just ensures that we preserve the
+     rate compared to activity=1. */
+  calibration = 1.95;
+  var_stat = 9. / mean_var;
+  /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
+     activity masking constant. */
+  activity = calibration * pow(.25 + var_stat, -1. / 6);
+#else
+  activity = 1;
+#endif
+  sum = 0;
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++)
+      sum += e_lp[i * stride + j] * (double)e_lp[i * stride + j];
+  }
+  /* Normalize the filter to unit DC response. */
+  sum *= 1. / (OD_DIST_LP_NORM * OD_DIST_LP_NORM * OD_DIST_LP_NORM *
+               OD_DIST_LP_NORM);
+  return activity * activity * (sum + vardist);
+}
+
+// Note : Inputs x and y are in a pixel domain
+static double od_compute_dist(od_coeff *x,
+                              od_coeff *y, int bsize_w, int bsize_h,
+                              int qindex) {
+  int i;
+  double sum;
+  sum = 0;
+
+  (void)qindex;
+
+  assert(bsize_w >= 8 && bsize_h >= 8);
+
+    int j;
+    DECLARE_ALIGNED(16, od_coeff, e[MAX_TX_SQUARE]);
+    DECLARE_ALIGNED(16, od_coeff, tmp[MAX_TX_SQUARE]);
+    DECLARE_ALIGNED(16, od_coeff, e_lp[MAX_TX_SQUARE]);
+    int mid = OD_DIST_LP_MID;
+    for (i = 0; i < bsize_h; i++) {
+      for (j = 0; j < bsize_w; j++) {
+        e[i * bsize_w + j] = x[i * bsize_w + j] - y[i * bsize_w + j];
+      }
+    }
+    for (i = 0; i < bsize_h; i++) {
+      tmp[i * bsize_w] = mid * e[i * bsize_w] + 2 * e[i * bsize_w + 1];
+      tmp[i * bsize_w + bsize_w - 1] =
+          mid * e[i * bsize_w + bsize_w - 1] + 2 * e[i * bsize_w + bsize_w - 2];
+      for (j = 1; j < bsize_w - 1; j++) {
+        tmp[i * bsize_w + j] = mid * e[i * bsize_w + j] +
+                               e[i * bsize_w + j - 1] + e[i * bsize_w + j + 1];
+      }
+    }
+    for (j = 0; j < bsize_w; j++) {
+      e_lp[j] = mid * tmp[j] + 2 * tmp[bsize_w + j];
+      e_lp[(bsize_h - 1) * bsize_w + j] =
+          mid * tmp[(bsize_h - 1) * bsize_w + j] +
+          2 * tmp[(bsize_h - 2) * bsize_w + j];
+    }
+    for (i = 1; i < bsize_h - 1; i++) {
+      for (j = 0; j < bsize_w; j++) {
+        e_lp[i * bsize_w + j] = mid * tmp[i * bsize_w + j] +
+                                tmp[(i - 1) * bsize_w + j] +
+                                tmp[(i + 1) * bsize_w + j];
+      }
+    }
+    for (i = 0; i < bsize_h; i += 8) {
+      for (j = 0; j < bsize_w; j += 8) {
+        sum += od_compute_dist_8x8(&x[i * bsize_w + j],
+                                   &y[i * bsize_w + j], &e_lp[i * bsize_w + j],
+                                   bsize_w);
+      }
+    }
+    /* Compensate for the fact that the quantization matrix lowers the
+       distortion value. We tried a half-dozen values and picked the one where
+       we liked the ntt-short1 curves best. The tuning is approximate since
+       the different metrics go in different directions. */
+    /*Start interpolation at coded_quantizer 1.7=f(36) and end it at 1.2=f(47)*/
+    // TODO(yushin): Check whether qindex of AV1 work here, replacing daala's
+    // coded_quantizer.
+    /*sum *= qindex >= 47 ? 1.2 :
+        qindex <= 36 ? 1.7 :
+     1.7 + (1.2 - 1.7)*(qindex - 36)/(47 - 36);*/
+  return sum;
+}
+
+static double compute_dist_wrap(int16_t *_x, int xstride, int16_t *_y, int ystride,
+                           int nhb, int nvb, int coeff_shift) {
+  od_coeff x[MAX_TX_SQUARE];
+  od_coeff y[MAX_TX_SQUARE];
+  int i, j;
+  for (i=0;i<nvb*8;i++) {
+    for (j=0;j<nhb*8;j++) {
+      x[i*nvb*8 + j] = _x[i*xstride + j];
+      y[i*nvb*8 + j] = _y[i*ystride + j];
+    }
+  }
+  return od_compute_dist(x, y, 8*nhb, 8*nvb, 0);
+}
+
 int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       AV1_COMMON *cm, MACROBLOCKD *xd) {
   int r, c;
@@ -140,11 +296,18 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[0], tmp_dst,
                                    dlist, dering_count, bsize[0]);
-        cur_mse = (int)compute_dist(
+        cur_mse = (int)compute_dist_wrap(
             dst, MAX_MIB_SIZE << bsize[0],
             &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                        (sbc * MAX_MIB_SIZE << bsize[0])],
             stride, nhb, nvb, coeff_shift);
+        //printf("%d ", cur_mse);
+        (int)compute_dist(
+            dst, MAX_MIB_SIZE << bsize[0],
+            &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
+                       (sbc * MAX_MIB_SIZE << bsize[0])],
+            stride, nhb, nvb, coeff_shift);
+        //printf("%d\n", cur_mse);
         if (cur_mse < best_mse) {
           best_gi = gi;
           best_mse = cur_mse;
