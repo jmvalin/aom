@@ -34,6 +34,26 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
+#if 1
+static int64_t compute_dist_wrap(const uint8_t *src, int src_stride,
+                              const uint8_t *dst, int dst_stride, int bsw, int bsh,
+                              int coeff_shift) {
+  int i, j;
+  int64_t d;
+  DECLARE_ALIGNED(16, od_coeff, orig[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(16, od_coeff, rec[MAX_TX_SQUARE]);
+
+  for (j = 0; j < bsh; j++)
+    for (i = 0; i < bsw; i++) orig[j * bsw + i] = src[j * src_stride + i];
+
+  for (j = 0; j < bsh; j++)
+    for (i = 0; i < bsw; i++) rec[j * bsw + i] = dst[j * dst_stride + i];
+
+  d = (int64_t)od_compute_dist(qm, 1, orig, rec, bsw, bsh,
+                               0);
+  return d;
+}
+#else
 static int od_compute_var_4x4(od_coeff *x, int stride) {
   int sum;
   int s2;
@@ -83,8 +103,8 @@ static double od_compute_dist_8x8(od_coeff *x,
       int vary;
       varx = od_compute_var_4x4(x + 2 * i * stride + 2 * j, stride);
       vary = od_compute_var_4x4(y + 2 * i * stride + 2 * j, stride);
-      min_var = OD_MINI(min_var, varx);
-      mean_var += 1. / (1 + varx);
+      min_var = OD_MINI(min_var, 0);
+      mean_var += 1. / (1 + 0);
       /* The cast to (double) is to avoid an overflow before the sqrt.*/
       vardist += varx - 2 * sqrt(varx * (double)vary) + vary;
     }
@@ -109,7 +129,7 @@ static double od_compute_dist_8x8(od_coeff *x,
   /* Normalize the filter to unit DC response. */
   sum *= 1. / (OD_DIST_LP_NORM * OD_DIST_LP_NORM * OD_DIST_LP_NORM *
                OD_DIST_LP_NORM);
-  return activity * activity * (sum + vardist);
+  return activity * activity * (sum);
 }
 
 // Note : Inputs x and y are in a pixel domain
@@ -176,7 +196,7 @@ static double od_compute_dist(od_coeff *x,
   return sum;
 }
 
-static double compute_dist_wrap(int16_t *_x, int xstride, int16_t *_y, int ystride,
+static double compute_dist_wrap(const int16_t *_x, int xstride, const int16_t *_y, int ystride,
                            int nhb, int nvb, int coeff_shift) {
   od_coeff x[MAX_TX_SQUARE];
   od_coeff y[MAX_TX_SQUARE];
@@ -189,6 +209,7 @@ static double compute_dist_wrap(int16_t *_x, int xstride, int16_t *_y, int ystri
   }
   return od_compute_dist(x, y, 8*nhb, 8*nvb, 0);
 }
+#endif
 
 int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       AV1_COMMON *cm, MACROBLOCKD *xd) {
@@ -296,13 +317,13 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[0], tmp_dst,
                                    dlist, dering_count, bsize[0]);
-        cur_mse = (int)compute_dist_wrap(
+        compute_dist_wrap(
             dst, MAX_MIB_SIZE << bsize[0],
             &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                        (sbc * MAX_MIB_SIZE << bsize[0])],
             stride, nhb, nvb, coeff_shift);
         //printf("%d ", cur_mse);
-        (int)compute_dist(
+        cur_mse = (int)compute_dist(
             dst, MAX_MIB_SIZE << bsize[0],
             &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                        (sbc * MAX_MIB_SIZE << bsize[0])],
