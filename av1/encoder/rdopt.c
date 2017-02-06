@@ -537,7 +537,7 @@ static double od_compute_dist_8x8(int qm, int use_activity_masking, od_coeff *x,
 }
 
 // Note : Inputs x and y are in a pixel domain
-static double od_compute_dist(int qm, int activity_masking, od_coeff *x,
+double od_compute_dist(int qm, int activity_masking, od_coeff *x,
                               od_coeff *y, int bsize_w, int bsize_h,
                               int qindex) {
   int i;
@@ -547,6 +547,7 @@ static double od_compute_dist(int qm, int activity_masking, od_coeff *x,
   assert(bsize_w >= 8 && bsize_h >= 8);
 
   if (qm == OD_FLAT_QM) {
+    //printf("flat: %d x %d\n", bsize_w, bsize_h);
     for (i = 0; i < bsize_w * bsize_h; i++) {
       double tmp;
       tmp = x[i] - y[i];
@@ -554,9 +555,9 @@ static double od_compute_dist(int qm, int activity_masking, od_coeff *x,
     }
   } else {
     int j;
-    DECLARE_ALIGNED(16, od_coeff, e[MAX_TX_SQUARE]);
-    DECLARE_ALIGNED(16, od_coeff, tmp[MAX_TX_SQUARE]);
-    DECLARE_ALIGNED(16, od_coeff, e_lp[MAX_TX_SQUARE]);
+    DECLARE_ALIGNED(16, od_coeff, e[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, od_coeff, tmp[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, od_coeff, e_lp[MAX_SB_SQUARE]);
     int mid = OD_DIST_LP_MID;
     for (i = 0; i < bsize_h; i++) {
       for (j = 0; j < bsize_w; j++) {
@@ -615,8 +616,8 @@ static int64_t av1_daala_dist(const uint8_t *src, int src_stride,
   const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
   const int bsw = block_size_wide[tx_bsize];
   const int bsh = block_size_high[tx_bsize];
-  DECLARE_ALIGNED(16, od_coeff, orig[MAX_TX_SQUARE]);
-  DECLARE_ALIGNED(16, od_coeff, rec[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(16, od_coeff, orig[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, od_coeff, rec[MAX_SB_SQUARE]);
 
   assert(qm == OD_HVS_QM);
 

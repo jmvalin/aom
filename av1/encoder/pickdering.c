@@ -16,6 +16,7 @@
 #include "av1/common/dering.h"
 #include "av1/common/onyxc_int.h"
 #include "av1/common/reconinter.h"
+#include "av1/common/pvq.h"
 #include "av1/encoder/encoder.h"
 #include "aom/aom_integer.h"
 
@@ -35,21 +36,28 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
 }
 
 #if 1
-static int64_t compute_dist_wrap(const uint8_t *src, int src_stride,
-                              const uint8_t *dst, int dst_stride, int bsw, int bsh,
+
+double od_compute_dist(int qm, int activity_masking, od_coeff *x,
+                              od_coeff *y, int bsize_w, int bsize_h,
+                              int qindex);
+
+static int64_t compute_dist_wrap(int16_t *src, int src_stride,
+                              int16_t *dst, int dst_stride, int bsw, int bsh,
                               int coeff_shift) {
   int i, j;
   int64_t d;
-  DECLARE_ALIGNED(16, od_coeff, orig[MAX_TX_SQUARE]);
-  DECLARE_ALIGNED(16, od_coeff, rec[MAX_TX_SQUARE]);
+  DECLARE_ALIGNED(16, od_coeff, orig[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, od_coeff, rec[MAX_SB_SQUARE]);
 
+  bsw <<= 3;
+  bsh <<= 3;
   for (j = 0; j < bsh; j++)
     for (i = 0; i < bsw; i++) orig[j * bsw + i] = src[j * src_stride + i];
 
   for (j = 0; j < bsh; j++)
     for (i = 0; i < bsw; i++) rec[j * bsw + i] = dst[j * dst_stride + i];
 
-  d = (int64_t)od_compute_dist(qm, 1, orig, rec, bsw, bsh,
+  d = (int64_t)od_compute_dist(OD_HVS_QM, 1, orig, rec, bsw, bsh,
                                0);
   return d;
 }
@@ -317,23 +325,27 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[0], tmp_dst,
                                    dlist, dering_count, bsize[0]);
-        compute_dist_wrap(
+#if 1
+        cur_mse = (int)compute_dist_wrap(
             dst, MAX_MIB_SIZE << bsize[0],
             &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                        (sbc * MAX_MIB_SIZE << bsize[0])],
             stride, nhb, nvb, coeff_shift);
-        //printf("%d ", cur_mse);
+        //printf("(%d ", cur_mse);
+#else
         cur_mse = (int)compute_dist(
             dst, MAX_MIB_SIZE << bsize[0],
             &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                        (sbc * MAX_MIB_SIZE << bsize[0])],
             stride, nhb, nvb, coeff_shift);
-        //printf("%d\n", cur_mse);
+        //printf("%d) ", cur_mse);
+#endif
         if (cur_mse < best_mse) {
           best_gi = gi;
           best_mse = cur_mse;
         }
       }
+      //printf("\n");
       cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                           MAX_MIB_SIZE * sbc]
           ->mbmi.dering_gain = best_gi;
