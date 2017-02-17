@@ -348,6 +348,11 @@ void av1_clpf_test_frame(const YV12_BUFFER_CONFIG *rec,
     sums[0][0] -= sums[0][0] >> 7;
   }
 
+  // Prevent fb_size = 128
+  sums[1][1] += 1UL << 62;
+  sums[1][2] += 1UL << 62;
+  sums[1][3] += 1UL << 62;
+
   for (j = 0; j < 4; j++) {
     static const double lambda_square[] = {
       // exp(x / 8.5)
