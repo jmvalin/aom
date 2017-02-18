@@ -303,12 +303,6 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
   od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES] = {
     od_filter_dering_direction_4x4, od_filter_dering_direction_8x8
   };
-#ifndef CONFIG_CLPF
-  int filter2_thresh[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS];
-  od_filter_dering_orthogonal_func filter_dering_orthogonal[OD_DERINGSIZES] = {
-    od_filter_dering_orthogonal_4x4, od_filter_dering_orthogonal_8x8
-  };
-#endif
   bsize = OD_DERING_SIZE_LOG2 - xdec;
   if (pli == 0) {
     for (bi = 0; bi < dering_count; bi++) {
@@ -325,9 +319,6 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
    to be a little bit more aggressive on pure horizontal/vertical
    since the ringing there tends to be directional, so it doesn't
    get removed by the directional filtering. */
-#ifndef CONFIG_CLPF
-      filter2_thresh[by][bx] =
-#endif
           (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
               &y[bi << 2 * bsize], 1 << bsize,
               &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
@@ -337,9 +328,6 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
     for (bi = 0; bi < dering_count; bi++) {
       by = dlist[bi].by;
       bx = dlist[bi].bx;
-#ifndef CONFIG_CLPF
-      filter2_thresh[by][bx] =
-#endif
           (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
               &y[bi << 2 * bsize], 1 << bsize,
               &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], threshold,
@@ -348,15 +336,4 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
   }
   copy_dering_16bit_to_16bit(in, OD_FILT_BSTRIDE, y, dlist, dering_count,
                              bsize);
-#ifndef CONFIG_CLPF
-  for (bi = 0; bi < dering_count; bi++) {
-    by = dlist[bi].by;
-    bx = dlist[bi].bx;
-    if (filter2_thresh[by][bx] == 0) continue;
-    (filter_dering_orthogonal[bsize - OD_LOG_BSIZE0])(
-        &y[bi << 2 * bsize], 1 << bsize,
-        &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-        filter2_thresh[by][bx], dir[by][bx]);
-  }
-#endif
 }

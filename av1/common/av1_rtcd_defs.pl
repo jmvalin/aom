@@ -749,7 +749,7 @@ if (aom_config("CONFIG_AOM_HIGHBITDEPTH") eq "yes") {
 
 # Deringing Functions
 
-if (aom_config("CONFIG_DERING") eq "yes") {
+if (aom_config("CONFIG_CDEF") eq "yes") {
   add_proto qw/int od_dir_find8/, "const od_dering_in *img, int stride, int32_t *var, int coeff_shift";
   specialize qw/od_dir_find8 sse4_1/;
 
