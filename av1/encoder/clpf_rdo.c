@@ -376,7 +376,7 @@ void av1_clpf_test_frame(const YV12_BUFFER_CONFIG *rec,
   }
 
   best = (int64_t)1 << 62;
-  for (c = 0; c < (plane == AOM_PLANE_Y ? 4 : 1); c++)
+  for (c = 0; c < (plane == AOM_PLANE_Y ? 3 : 1); c++)
     for (j = 0; j < 4; j++)
       if ((!c || j) && sums[c][j] < best) best = sums[c][j];
   best &= 15;
