@@ -19,13 +19,31 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/od_dering.h"
 
-int compute_level_from_index(int global_level, int gi) {
+int dering_level_table[DERING_STRENGTHS] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+};
+
+int levels_to_id(const int lev[4]) {
+  return (lev[3] + DERING_STRENGTHS*(lev[2] + DERING_STRENGTHS*(lev[1] + DERING_STRENGTHS*lev[0])));
+}
+
+void id_to_levels(int lev[4], int id) {
+  lev[0] = id/(DERING_STRENGTHS*DERING_STRENGTHS*DERING_STRENGTHS);
+  id -= lev[0]*(DERING_STRENGTHS*DERING_STRENGTHS*DERING_STRENGTHS);
+  lev[1] = id/(DERING_STRENGTHS*DERING_STRENGTHS);
+  id -= lev[1]*(DERING_STRENGTHS*DERING_STRENGTHS);
+  lev[2] = id/(DERING_STRENGTHS);
+  id -= lev[2]*(DERING_STRENGTHS);
+  lev[3] = id;
+}
+
+/*int compute_level_from_index(int global_level, int gi) {
   static const int dering_gains[DERING_REFINEMENT_LEVELS] = { 0, 11, 16, 22 };
   int level;
   if (global_level == 0) return 0;
   level = (global_level * dering_gains[gi] + 8) >> 4;
   return clamp(level, gi, MAX_DERING_LEVEL - 1);
-}
+}*/
 
 int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
   int r, c;
@@ -165,6 +183,8 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   int dering_left;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
   int nplanes;
+  int lev[4];
+  id_to_levels(lev, global_level);
   if (xd->plane[1].subsampling_x == xd->plane[1].subsampling_y &&
       xd->plane[2].subsampling_x == xd->plane[2].subsampling_y)
     nplanes = 3;
@@ -201,10 +221,9 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       if (!dering_left) cstart = -OD_FILT_HBORDER;
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
-      level = compute_level_from_index(
-          global_level, cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
+      level = dering_level_table[lev[cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                                             MAX_MIB_SIZE * sbc]
-                            ->mbmi.dering_gain);
+                            ->mbmi.dering_gain]];
       curr_row_dering[sbc] = 0;
       if (level == 0 ||
           (dering_count = sb_compute_dering_list(
