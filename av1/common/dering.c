@@ -19,6 +19,10 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/od_dering.h"
 
+int dering_level_table[21] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+};
+
 int compute_level_from_index(int global_level, int gi) {
   static const int dering_gains[DERING_REFINEMENT_LEVELS] = { 0, 11, 16, 22 };
   int level;
