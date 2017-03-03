@@ -32,7 +32,7 @@ int av1_clpf_sample(int X, int A, int B, int C, int D, int E, int F, int G,
   return (8 + delta - (delta < 0)) >> 4;
 }
 
-void aom_clpf_block_c(const uint8_t *src, uint8_t *dst, int sstride,
+void aom_clpf_vblock_c(const uint8_t *src, uint8_t *dst, int sstride,
                       int dstride, int x0, int y0, int sizex, int sizey,
                       unsigned int strength, BOUNDARY_TYPE bt,
                       unsigned int damping) {
@@ -80,7 +80,7 @@ void aom_clpf_hblock_c(const uint8_t *src, uint8_t *dst, int sstride,
   }
 }
 
-void aom_clpf_vblock_c(const uint8_t *src, uint8_t *dst, int sstride,
+void aom_clpf_block_c(const uint8_t *src, uint8_t *dst, int sstride,
                       int dstride, int x0, int y0, int sizex, int sizey,
                       unsigned int strength, BOUNDARY_TYPE bt,
                       unsigned int damping) {
@@ -322,7 +322,7 @@ void av1_clpf_frame(
               }
 #else
 
-              int dir = dering_dir_buf[ypos/bs][xpos/bs]-1;
+              int dir = dering_dir_buf[(ypos << suby) / MI_SIZE][(xpos << subx) / MI_SIZE]-1;
               /* Brutal assert! */
               if (dir==-1) *(int*)0=0;
               if (dir==-2) {
