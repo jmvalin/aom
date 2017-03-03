@@ -330,7 +330,7 @@ void av1_clpf_frame(
                               ypos, sizex, sizey, strength, boundary_type,
                               damping);
               } else if (dir>=1 && dir <= 3) {
-                aom_clpf_block(src_buffer, dst_buffer, sstride, dstride, xpos,
+                aom_clpf_vblock_c(src_buffer, dst_buffer, sstride, dstride, xpos,
                               ypos, sizex, sizey, strength, boundary_type,
                               damping);
 
