@@ -158,7 +158,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   best_tot_mse = 1e100;
   {
     int l0;
-    for (l0=0;l0<DERING_STRENGTHS;l0++) {
+    for (l0=0;l0<1;l0++) {
       int l1;
       lev[0] = l0;
       for (l1=l0+1;l1<DERING_STRENGTHS;l1++) {
