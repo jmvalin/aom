@@ -14,8 +14,9 @@
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
 #include "av1/common/quant_common.h"
+#include "av1/common/dering.h"
 
-// Calculate the error of a filtered and unfiltered block
+// Calculate the error of a cross filtered and unfiltered block
 void aom_clpf_detect_c(const uint8_t *rec, const uint8_t *org, int rstride,
                        int ostride, int x0, int y0, int width, int height,
                        int *sum0, int *sum1, unsigned int strength, int size,
@@ -35,6 +36,54 @@ void aom_clpf_detect_c(const uint8_t *rec, const uint8_t *org, int rstride,
       const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x];
       const int delta =
           av1_clpf_sample(X, A, B, C, D, E, F, G, H, strength, dmp);
+      const int Y = X + delta;
+      *sum0 += (O - X) * (O - X);
+      *sum1 += (O - Y) * (O - Y);
+    }
+  }
+}
+
+// Calculate the error of a horizontally filtered and unfiltered block
+void aom_clpf_hdetect_c(const uint8_t *rec, const uint8_t *org, int rstride,
+                       int ostride, int x0, int y0, int width, int height,
+                       int *sum0, int *sum1, unsigned int strength, int size,
+                       unsigned int dmp) {
+  int x, y;
+  (void)height;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x];
+      const int X = rec[y * rstride + x];
+      const int C = rec[y * rstride + AOMMAX(0, x - 2)];
+      const int D = rec[y * rstride + AOMMAX(0, x - 1)];
+      const int E = rec[y * rstride + AOMMIN(width - 1, x + 1)];
+      const int F = rec[y * rstride + AOMMIN(width - 1, x + 2)];
+      const int delta =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, strength, dmp);
+      const int Y = X + delta;
+      *sum0 += (O - X) * (O - X);
+      *sum1 += (O - Y) * (O - Y);
+    }
+  }
+}
+
+// Calculate the error of a vertically filtered and unfiltered block
+void aom_clpf_vdetect_c(const uint8_t *rec, const uint8_t *org, int rstride,
+                       int ostride, int x0, int y0, int width, int height,
+                       int *sum0, int *sum1, unsigned int strength, int size,
+                       unsigned int dmp) {
+  int x, y;
+  (void)width;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x];
+      const int X = rec[y * rstride + x];
+      const int A = rec[AOMMAX(0, y - 2) * rstride + x];
+      const int B = rec[AOMMAX(0, y - 1) * rstride + x];
+      const int G = rec[AOMMIN(height - 1, y + 1) * rstride + x];
+      const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x];
+      const int delta =
+          av1_clpf_sample(X, A, B, A, B, G, H, G, H, strength, dmp);
       const int Y = X + delta;
       *sum0 += (O - X) * (O - X);
       *sum1 += (O - Y) * (O - Y);
@@ -74,6 +123,62 @@ void aom_clpf_detect_multi_c(const uint8_t *rec, const uint8_t *org,
   }
 }
 
+void aom_clpf_hdetect_multi_c(const uint8_t *rec, const uint8_t *org,
+                             int rstride, int ostride, int x0, int y0,
+                             int width, int height, int *sum, int size,
+                             unsigned int dmp) {
+  int x, y;
+  (void)height;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x];
+      const int X = rec[y * rstride + x];
+      const int C = rec[y * rstride + AOMMAX(0, x - 2)];
+      const int D = rec[y * rstride + AOMMAX(0, x - 1)];
+      const int E = rec[y * rstride + AOMMIN(width - 1, x + 1)];
+      const int F = rec[y * rstride + AOMMIN(width - 1, x + 2)];
+      const int delta1 = av1_clpf_sample(X, C, D, C, D, E, F, E, F, 1, dmp);
+      const int delta2 = av1_clpf_sample(X, C, D, C, D, E, F, E, F, 2, dmp);
+      const int delta3 = av1_clpf_sample(X, C, D, C, D, E, F, E, F, 4, dmp);
+      const int F1 = X + delta1;
+      const int F2 = X + delta2;
+      const int F3 = X + delta3;
+      sum[0] += (O - X) * (O - X);
+      sum[1] += (O - F1) * (O - F1);
+      sum[2] += (O - F2) * (O - F2);
+      sum[3] += (O - F3) * (O - F3);
+    }
+  }
+}
+
+void aom_clpf_vdetect_multi_c(const uint8_t *rec, const uint8_t *org,
+                             int rstride, int ostride, int x0, int y0,
+                             int width, int height, int *sum, int size,
+                             unsigned int dmp) {
+  int x, y;
+  (void)width;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x];
+      const int X = rec[y * rstride + x];
+      const int A = rec[AOMMAX(0, y - 2) * rstride + x];
+      const int B = rec[AOMMAX(0, y - 1) * rstride + x];
+      const int G = rec[AOMMIN(height - 1, y + 1) * rstride + x];
+      const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x];
+      const int delta1 = av1_clpf_sample(X, A, B, A, B, G, H, G, H, 1, dmp);
+      const int delta2 = av1_clpf_sample(X, A, B, A, B, G, H, G, H, 2, dmp);
+      const int delta3 = av1_clpf_sample(X, A, B, A, B, G, H, G, H, 4, dmp);
+      const int F1 = X + delta1;
+      const int F2 = X + delta2;
+      const int F3 = X + delta3;
+      sum[0] += (O - X) * (O - X);
+      sum[1] += (O - F1) * (O - F1);
+      sum[2] += (O - F2) * (O - F2);
+      sum[3] += (O - F3) * (O - F3);
+    }
+  }
+}
+
 #if CONFIG_AOM_HIGHBITDEPTH
 // Identical to aom_clpf_detect_c() apart from "rec" and "org".
 void aom_clpf_detect_hbd_c(const uint16_t *rec, const uint16_t *org,
@@ -96,6 +201,58 @@ void aom_clpf_detect_hbd_c(const uint16_t *rec, const uint16_t *org,
       const int G = rec[AOMMIN(height - 1, y + 1) * rstride + x] >> shift;
       const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x] >> shift;
       const int delta = av1_clpf_sample(X, A, B, C, D, E, F, G, H,
+                                        strength >> shift, dmp - shift);
+      const int Y = X + delta;
+      *sum0 += (O - X) * (O - X);
+      *sum1 += (O - Y) * (O - Y);
+    }
+  }
+}
+
+// Identical to aom_clpf_hdetect_c() apart from "rec" and "org".
+void aom_clpf_hdetect_hbd_c(const uint16_t *rec, const uint16_t *org,
+                           int rstride, int ostride, int x0, int y0, int width,
+                           int height, int *sum0, int *sum1,
+                           unsigned int strength, int size, unsigned int bd,
+                           unsigned int dmp) {
+  const int shift = bd - 8;
+  int x, y;
+  (void)height;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x] >> shift;
+      const int X = rec[y * rstride + x] >> shift;
+      const int C = rec[y * rstride + AOMMAX(0, x - 2)] >> shift;
+      const int D = rec[y * rstride + AOMMAX(0, x - 1)] >> shift;
+      const int E = rec[y * rstride + AOMMIN(width - 1, x + 1)] >> shift;
+      const int F = rec[y * rstride + AOMMIN(width - 1, x + 2)] >> shift;
+      const int delta = av1_clpf_sample(X, C, D, C, D, E, F, E, F,
+                                        strength >> shift, dmp - shift);
+      const int Y = X + delta;
+      *sum0 += (O - X) * (O - X);
+      *sum1 += (O - Y) * (O - Y);
+    }
+  }
+}
+
+// Identical to aom_vclpf_detect_c() apart from "rec" and "org".
+void aom_clpf_vdetect_hbd_c(const uint16_t *rec, const uint16_t *org,
+                           int rstride, int ostride, int x0, int y0, int width,
+                           int height, int *sum0, int *sum1,
+                           unsigned int strength, int size, unsigned int bd,
+                           unsigned int dmp) {
+  const int shift = bd - 8;
+  int x, y;
+  (void)width;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      const int O = org[y * ostride + x] >> shift;
+      const int X = rec[y * rstride + x] >> shift;
+      const int A = rec[AOMMAX(0, y - 2) * rstride + x] >> shift;
+      const int B = rec[AOMMAX(0, y - 1) * rstride + x] >> shift;
+      const int G = rec[AOMMIN(height - 1, y + 1) * rstride + x] >> shift;
+      const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x] >> shift;
+      const int delta = av1_clpf_sample(X, A, B, A, B, G, H, G, H,
                                         strength >> shift, dmp - shift);
       const int Y = X + delta;
       *sum0 += (O - X) * (O - X);
@@ -140,6 +297,72 @@ void aom_clpf_detect_multi_hbd_c(const uint16_t *rec, const uint16_t *org,
     }
   }
 }
+
+// aom_clpf_hdetect_multi_c() apart from "rec" and "org".
+void aom_clpf_hdetect_multi_hbd_c(const uint16_t *rec, const uint16_t *org,
+                                 int rstride, int ostride, int x0, int y0,
+                                 int width, int height, int *sum, int size,
+                                 unsigned int bd, unsigned int dmp) {
+  const int shift = bd - 8;
+  int x, y;
+  (void)height;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      int O = org[y * ostride + x] >> shift;
+      int X = rec[y * rstride + x] >> shift;
+      const int C = rec[y * rstride + AOMMAX(0, x - 2)] >> shift;
+      const int D = rec[y * rstride + AOMMAX(0, x - 1)] >> shift;
+      const int E = rec[y * rstride + AOMMIN(width - 1, x + 1)] >> shift;
+      const int F = rec[y * rstride + AOMMIN(width - 1, x + 2)] >> shift;
+      const int delta1 =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, 1, dmp - shift);
+      const int delta2 =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, 2, dmp - shift);
+      const int delta3 =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, 4, dmp - shift);
+      const int F1 = X + delta1;
+      const int F2 = X + delta2;
+      const int F3 = X + delta3;
+      sum[0] += (O - X) * (O - X);
+      sum[1] += (O - F1) * (O - F1);
+      sum[2] += (O - F2) * (O - F2);
+      sum[3] += (O - F3) * (O - F3);
+    }
+  }
+}
+
+// aom_clpf_vdetect_multi_c() apart from "rec" and "org".
+void aom_clpf_vdetect_multi_hbd_c(const uint16_t *rec, const uint16_t *org,
+                                 int rstride, int ostride, int x0, int y0,
+                                 int width, int height, int *sum, int size,
+                                 unsigned int bd, unsigned int dmp) {
+  const int shift = bd - 8;
+  int x, y;
+  (void)width;
+  for (y = y0; y < y0 + size; y++) {
+    for (x = x0; x < x0 + size; x++) {
+      int O = org[y * ostride + x] >> shift;
+      int X = rec[y * rstride + x] >> shift;
+      const int A = rec[AOMMAX(0, y - 2) * rstride + x] >> shift;
+      const int B = rec[AOMMAX(0, y - 1) * rstride + x] >> shift;
+      const int G = rec[AOMMIN(height - 1, y + 1) * rstride + x] >> shift;
+      const int H = rec[AOMMIN(height - 1, y + 2) * rstride + x] >> shift;
+      const int delta1 =
+          av1_clpf_sample(X, A, B, A, B, G, H, G, H, 1, dmp - shift);
+      const int delta2 =
+          av1_clpf_sample(X, A, B, A, B, G, H, G, H, 2, dmp - shift);
+      const int delta3 =
+          av1_clpf_sample(X, A, B, A, B, G, H, G, H, 4, dmp - shift);
+      const int F1 = X + delta1;
+      const int F2 = X + delta2;
+      const int F3 = X + delta3;
+      sum[0] += (O - X) * (O - X);
+      sum[1] += (O - F1) * (O - F1);
+      sum[2] += (O - F2) * (O - F2);
+      sum[3] += (O - F3) * (O - F3);
+    }
+  }
+}
 #endif
 
 int av1_clpf_decision(int k, int l, const YV12_BUFFER_CONFIG *rec,
@@ -157,24 +380,65 @@ int av1_clpf_decision(int k, int l, const YV12_BUFFER_CONFIG *rec,
       if (fb_size_log2 == MAX_FB_SIZE_LOG2 ||
           !cm->mi_grid_visible[ypos / MI_SIZE * cm->mi_stride + xpos / MI_SIZE]
                ->mbmi.skip) {
+        int dir = dering_dir_buf[ypos / MI_SIZE][xpos / MI_SIZE]-1;
+        /* Brutal assert! */
+        if (dir==-1) *(int*)0=0;
 #if CONFIG_AOM_HIGHBITDEPTH
         if (cm->use_highbitdepth) {
-          aom_clpf_detect_hbd(CONVERT_TO_SHORTPTR(rec->y_buffer),
-                              CONVERT_TO_SHORTPTR(org->y_buffer), rec->y_stride,
-                              org->y_stride, xpos, ypos, rec->y_crop_width,
-                              rec->y_crop_height, &sum0, &sum1, strength,
-                              block_size, cm->bit_depth, damping);
+          if (dir==-2) {
+            aom_clpf_detect_hbd(CONVERT_TO_SHORTPTR(rec->y_buffer),
+                                CONVERT_TO_SHORTPTR(org->y_buffer), rec->y_stride,
+                                org->y_stride, xpos, ypos, rec->y_crop_width,
+                                rec->y_crop_height, &sum0, &sum1, strength,
+                                block_size, cm->bit_depth, damping);
+          } else if (dir>=1 && dir <= 3) {
+            aom_clpf_vdetect_hbd(CONVERT_TO_SHORTPTR(rec->y_buffer),
+                                CONVERT_TO_SHORTPTR(org->y_buffer), rec->y_stride,
+                                org->y_stride, xpos, ypos, rec->y_crop_width,
+                                rec->y_crop_height, &sum0, &sum1, strength,
+                                block_size, cm->bit_depth, damping);
+          } else {
+            aom_clpf_hdetect_hbd(CONVERT_TO_SHORTPTR(rec->y_buffer),
+                                CONVERT_TO_SHORTPTR(org->y_buffer), rec->y_stride,
+                                org->y_stride, xpos, ypos, rec->y_crop_width,
+                                rec->y_crop_height, &sum0, &sum1, strength,
+                                block_size, cm->bit_depth, damping);
+          }
         } else {
+          if (dir==-2) {
+            aom_clpf_detect(rec->y_buffer, org->y_buffer, rec->y_stride,
+                            org->y_stride, xpos, ypos, rec->y_crop_width,
+                            rec->y_crop_height, &sum0, &sum1, strength,
+                            block_size, damping);
+          } else if (dir>=1 && dir <= 3) {
+            aom_clpf_vdetect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
+                            org->y_stride, xpos, ypos, rec->y_crop_width,
+                            rec->y_crop_height, &sum0, &sum1, strength,
+                            block_size, damping);
+          } else {
+            aom_clpf_hdetect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
+                            org->y_stride, xpos, ypos, rec->y_crop_width,
+                            rec->y_crop_height, &sum0, &sum1, strength,
+                            block_size, damping);
+          }
+        }
+#else
+        if (dir==-2) {
           aom_clpf_detect(rec->y_buffer, org->y_buffer, rec->y_stride,
                           org->y_stride, xpos, ypos, rec->y_crop_width,
                           rec->y_crop_height, &sum0, &sum1, strength,
                           block_size, damping);
+        } else if (dir>=1 && dir <= 3) {
+          aom_clpf_vdetect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
+                          org->y_stride, xpos, ypos, rec->y_crop_width,
+                          rec->y_crop_height, &sum0, &sum1, strength,
+                          block_size, damping);
+        } else {
+          aom_clpf_hdetect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
+                          org->y_stride, xpos, ypos, rec->y_crop_width,
+                          rec->y_crop_height, &sum0, &sum1, strength,
+                          block_size, damping);
         }
-#else
-        aom_clpf_detect(rec->y_buffer, org->y_buffer, rec->y_stride,
-                        org->y_stride, xpos, ypos, rec->y_crop_width,
-                        rec->y_crop_height, &sum0, &sum1, strength, block_size,
-                        damping);
 #endif
       }
     }
@@ -274,21 +538,58 @@ static int clpf_rdo(int y, int x, const YV12_BUFFER_CONFIG *rec,
           !!cm->mi_grid_visible[(ypos << suby) / MI_SIZE * cm->mi_stride +
                                 (xpos << subx) / MI_SIZE]
                 ->mbmi.skip;
+      int dir =
+          dering_dir_buf[(ypos << suby) / MI_SIZE][(xpos << subx) / MI_SIZE]-1;
+      /* Brutal assert! */
+      if (dir==-1) *(int*)0=0;
 #if CONFIG_AOM_HIGHBITDEPTH
       if (cm->use_highbitdepth) {
-        aom_clpf_detect_multi_hbd(
-            CONVERT_TO_SHORTPTR(rec_buffer), CONVERT_TO_SHORTPTR(org_buffer),
-            rec_stride, org_stride, xpos, ypos, rec_width, rec_height,
-            sum + skip, block_size, cm->bit_depth, damping);
+        if (dir==-2) {
+          aom_clpf_detect_multi_hbd(
+              CONVERT_TO_SHORTPTR(rec_buffer), CONVERT_TO_SHORTPTR(org_buffer),
+              rec_stride, org_stride, xpos, ypos, rec_width, rec_height,
+              sum + skip, block_size, cm->bit_depth, damping);
+        } else if (dir>=1 && dir <= 3) {
+          aom_clpf_vdetect_multi_hbd_c(
+              CONVERT_TO_SHORTPTR(rec_buffer), CONVERT_TO_SHORTPTR(org_buffer),
+              rec_stride, org_stride, xpos, ypos, rec_width, rec_height,
+              sum + skip, block_size, cm->bit_depth, damping);
+        } else {
+          aom_clpf_hdetect_multi_hbd_c(
+              CONVERT_TO_SHORTPTR(rec_buffer), CONVERT_TO_SHORTPTR(org_buffer),
+              rec_stride, org_stride, xpos, ypos, rec_width, rec_height,
+              sum + skip, block_size, cm->bit_depth, damping);
+        }
+
       } else {
+        if (dir==-2) {
+          aom_clpf_detect_multi(rec_buffer, org_buffer, rec_stride, org_stride,
+                                xpos, ypos, rec_width, rec_height, sum + skip,
+                                block_size, damping);
+        } else if (dir>=1 && dir <= 3) {
+          aom_clpf_vdetect_multi_c(rec_buffer, org_buffer, rec_stride, org_stride,
+                                xpos, ypos, rec_width, rec_height, sum + skip,
+                                block_size, damping);
+        } else {
+          aom_clpf_hdetect_multi_c(rec_buffer, org_buffer, rec_stride, org_stride,
+                                xpos, ypos, rec_width, rec_height, sum + skip,
+                                block_size, damping);
+        }
+      }
+#else
+      if (dir==-2) {
         aom_clpf_detect_multi(rec_buffer, org_buffer, rec_stride, org_stride,
                               xpos, ypos, rec_width, rec_height, sum + skip,
                               block_size, damping);
+      } else if (dir>=1 && dir <= 3) {
+        aom_clpf_vdetect_multi_c(rec_buffer, org_buffer, rec_stride, org_stride,
+                              xpos, ypos, rec_width, rec_height, sum + skip,
+                              block_size, damping);
+      } else {
+        aom_clpf_hdetect_multi_c(rec_buffer, org_buffer, rec_stride, org_stride,
+                              xpos, ypos, rec_width, rec_height, sum + skip,
+                              block_size, damping);
       }
-#else
-      aom_clpf_detect_multi(rec_buffer, org_buffer, rec_stride, org_stride,
-                            xpos, ypos, rec_width, rec_height, sum + skip,
-                            block_size, damping);
 #endif
       filtered |= !skip;
     }
