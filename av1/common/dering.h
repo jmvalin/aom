@@ -31,6 +31,8 @@ extern "C" {
 #define DERING_STRENGTHS 21
 extern int dering_level_table[DERING_STRENGTHS];
 
+extern signed char dering_dir_buf[600][1024];
+
 int levels_to_id(const int lev[4]);
 void id_to_levels(int lev[4], int id);
 

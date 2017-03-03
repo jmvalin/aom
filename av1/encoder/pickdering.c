@@ -138,7 +138,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           }
         }
         od_dering(tmp_dst, in, 0, dir, 0, dlist, dering_count, threshold,
-                  coeff_shift);
+                  coeff_shift, 0, 0);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[0], tmp_dst,
                                    dlist, dering_count, bsize[0]);
         mse[sb_count][gi] = (int)compute_dist(
@@ -158,10 +158,10 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   best_tot_mse = 1e100;
   {
     int l0;
-    for (l0=0;l0<DERING_STRENGTHS;l0++) {
+    for (l0=0;l0<1;l0++) {
       int l1;
       lev[0] = l0;
-      for (l1=l0+1;l1<DERING_STRENGTHS;l1++) {
+      for (l1=l0+3;l1<DERING_STRENGTHS;l1++) {
         int l2;
         lev[1] = l1;
         for (l2=l1+1;l2<DERING_STRENGTHS;l2++) {
