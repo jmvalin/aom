@@ -29,6 +29,8 @@ extern "C" {
 #define DERING_REFINEMENT_LEVELS 4
 
 int compute_level_from_index(int global_level, int gi);
+extern signed char dering_dir_buf[600][1024];
+
 int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col);
 int sb_compute_dering_list(const AV1_COMMON *const cm, int mi_row, int mi_col,
                            dering_list *dlist);

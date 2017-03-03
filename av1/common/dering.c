@@ -146,6 +146,10 @@ static void copy_sb8_16(AV1_COMMON *cm, int16_t *dst, int dstride,
   }
 }
 
+/* Should be enough for 8k, values are:
+   -1: not filtered, 0: it's a bug (uninitialized), otherwise 1+direction */
+signed char dering_dir_buf[600][1024];
+
 void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                       MACROBLOCKD *xd, int global_level) {
   int r, c;
@@ -172,6 +176,9 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
     nplanes = 1;
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
+  for (r=0;r<cm->mi_rows;r++)
+    for (c=0;c<cm->mi_cols;c++)
+      dering_dir_buf[r][c] = -1;
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
   row_dering = aom_malloc(sizeof(*row_dering) * nhsb * 2);
   memset(row_dering, 1, sizeof(*row_dering) * (nhsb + 2) * 2);
@@ -350,7 +357,7 @@ void av1_dering_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         if (threshold == 0) continue;
         od_dering(
             dst, &src[OD_FILT_VBORDER * OD_FILT_BSTRIDE + OD_FILT_HBORDER],
-            dec[pli], dir, pli, dlist, dering_count, threshold, coeff_shift);
+            dec[pli], dir, pli, dlist, dering_count, threshold, coeff_shift, sbr, sbc);
 #if CONFIG_AOM_HIGHBITDEPTH
         if (cm->use_highbitdepth) {
           copy_dering_16bit_to_16bit(

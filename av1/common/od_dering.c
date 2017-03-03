@@ -237,7 +237,7 @@ void copy_dering_16bit_to_16bit(int16_t *dst, int dstride, int16_t *src,
 void od_dering(int16_t *y, int16_t *in, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                dering_list *dlist, int dering_count, int threshold,
-               int coeff_shift) {
+               int coeff_shift, int sbr, int sbc) {
   int bi;
   int bx;
   int by;
@@ -253,6 +253,7 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
       bx = dlist[bi].bx;
       dir[by][bx] = od_dir_find8(&in[8 * by * OD_FILT_BSTRIDE + 8 * bx],
                                  OD_FILT_BSTRIDE, &var, coeff_shift);
+      dering_dir_buf[8*sbr+by][8*sbc+bx] = 1+dir[by][bx];
       /* Deringing orthogonal to the direction uses a tighter threshold
          because we want to be conservative. We've presumably already
          achieved some deringing, so the amount of change is expected
@@ -265,6 +266,7 @@ void od_dering(int16_t *y, int16_t *in, int xdec,
           &y[bi << 2 * bsize], 1 << bsize,
           &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
           od_adjust_thresh(threshold, var), dir[by][bx]);
+
     }
   } else {
     for (bi = 0; bi < dering_count; bi++) {
