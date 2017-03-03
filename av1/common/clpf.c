@@ -13,6 +13,7 @@
 #include "./aom_dsp_rtcd.h"
 #include "aom/aom_image.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "dering.h"
 
 int sign(int i) { return i < 0 ? -1 : 1; }
 
@@ -320,9 +321,25 @@ void av1_clpf_frame(
                                damping);
               }
 #else
-              aom_clpf_block(src_buffer, dst_buffer, sstride, dstride, xpos,
-                             ypos, sizex, sizey, strength, boundary_type,
-                             damping);
+
+              int dir = dering_dir_buf[ypos/bs][xpos/bs]-1;
+              /* Brutal assert! */
+              if (dir==-1) *(int*)0=0;
+              if (dir==-2) {
+                aom_clpf_block(src_buffer, dst_buffer, sstride, dstride, xpos,
+                              ypos, sizex, sizey, strength, boundary_type,
+                              damping);
+              } else if (dir>=1 && dir <= 3) {
+                aom_clpf_vblock_c(src_buffer, dst_buffer, sstride, dstride, xpos,
+                              ypos, sizex, sizey, strength, boundary_type,
+                              damping);
+
+              } else {
+                aom_clpf_hblock_c(src_buffer, dst_buffer, sstride, dstride, xpos,
+                              ypos, sizex, sizey, strength, boundary_type,
+                              damping);
+
+              }
 #endif
             }
           }
