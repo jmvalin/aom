@@ -48,7 +48,7 @@ void copy_dering_16bit_to_16bit(int16_t *dst, int dstride, int16_t *src,
 void od_dering(int16_t *y, int16_t *in, int xdec,
                int dir[OD_DERING_NBLOCKS][OD_DERING_NBLOCKS], int pli,
                dering_list *dlist, int skip_stride, int threshold,
-               int coeff_shift);
+               int coeff_shift, int sbr, int sbc);
 int od_filter_dering_direction_4x4_c(int16_t *y, int ystride, const int16_t *in,
                                      int threshold, int dir);
 int od_filter_dering_direction_8x8_c(int16_t *y, int ystride, const int16_t *in,

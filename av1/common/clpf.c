@@ -46,6 +46,54 @@ void aom_clpf_block_c(const uint8_t *src, uint8_t *dst, int sstride,
       const int X = src[y * sstride + x];
       const int A = src[AOMMAX(ymin, y - 2) * sstride + x];
       const int B = src[AOMMAX(ymin, y - 1) * sstride + x];
+      const int G = src[AOMMIN(ymax, y + 1) * sstride + x];
+      const int H = src[AOMMIN(ymax, y + 2) * sstride + x];
+      const int delta =
+          av1_clpf_sample(X, A, B, A, B, G, H, G, H, strength, damping);
+      dst[y * dstride + x] = X + delta;
+    }
+  }
+}
+
+void aom_clpf_hblock_c(const uint8_t *src, uint8_t *dst, int sstride,
+                      int dstride, int x0, int y0, int sizex, int sizey,
+                      unsigned int strength, BOUNDARY_TYPE bt,
+                      unsigned int damping) {
+  int x, y;
+  const int xmin = x0 - !(bt & TILE_LEFT_BOUNDARY) * 2;
+  const int ymin = y0 - !(bt & TILE_ABOVE_BOUNDARY) * 2;
+  const int xmax = x0 + sizex + !(bt & TILE_RIGHT_BOUNDARY) * 2 - 1;
+  const int ymax = y0 + sizey + !(bt & TILE_BOTTOM_BOUNDARY) * 2 - 1;
+
+  for (y = y0; y < y0 + sizey; y++) {
+    for (x = x0; x < x0 + sizex; x++) {
+      const int X = src[y * sstride + x];
+      const int C = src[y * sstride + AOMMAX(xmin, x - 2)];
+      const int D = src[y * sstride + AOMMAX(xmin, x - 1)];
+      const int E = src[y * sstride + AOMMIN(xmax, x + 1)];
+      const int F = src[y * sstride + AOMMIN(xmax, x + 2)];
+      const int delta =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, strength, damping);
+      dst[y * dstride + x] = X + delta;
+    }
+  }
+}
+
+void aom_clpf_vblock_c(const uint8_t *src, uint8_t *dst, int sstride,
+                      int dstride, int x0, int y0, int sizex, int sizey,
+                      unsigned int strength, BOUNDARY_TYPE bt,
+                      unsigned int damping) {
+  int x, y;
+  const int xmin = x0 - !(bt & TILE_LEFT_BOUNDARY) * 2;
+  const int ymin = y0 - !(bt & TILE_ABOVE_BOUNDARY) * 2;
+  const int xmax = x0 + sizex + !(bt & TILE_RIGHT_BOUNDARY) * 2 - 1;
+  const int ymax = y0 + sizey + !(bt & TILE_BOTTOM_BOUNDARY) * 2 - 1;
+
+  for (y = y0; y < y0 + sizey; y++) {
+    for (x = x0; x < x0 + sizex; x++) {
+      const int X = src[y * sstride + x];
+      const int A = src[AOMMAX(ymin, y - 2) * sstride + x];
+      const int B = src[AOMMAX(ymin, y - 1) * sstride + x];
       const int C = src[y * sstride + AOMMAX(xmin, x - 2)];
       const int D = src[y * sstride + AOMMAX(xmin, x - 1)];
       const int E = src[y * sstride + AOMMIN(xmax, x + 1)];
