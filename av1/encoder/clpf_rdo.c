@@ -582,7 +582,7 @@ static int clpf_rdo(int y, int x, const YV12_BUFFER_CONFIG *rec,
                               xpos, ypos, rec_width, rec_height, sum + skip,
                               block_size, damping);
       } else if (dir>=1 && dir <= 3) {
-        aom_clpf_vdetect_multi_c(rec_buffer, org_buffer, rec_stride, org_stride,
+        aom_clpf_detect_multi(rec_buffer, org_buffer, rec_stride, org_stride,
                               xpos, ypos, rec_width, rec_height, sum + skip,
                               block_size, damping);
       } else {
