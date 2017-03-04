@@ -429,7 +429,7 @@ int av1_clpf_decision(int k, int l, const YV12_BUFFER_CONFIG *rec,
                           rec->y_crop_height, &sum0, &sum1, strength,
                           block_size, damping);
         } else if (dir>=1 && dir <= 3) {
-          aom_clpf_vdetect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
+          aom_clpf_detect_c(rec->y_buffer, org->y_buffer, rec->y_stride,
                           org->y_stride, xpos, ypos, rec->y_crop_width,
                           rec->y_crop_height, &sum0, &sum1, strength,
                           block_size, damping);
