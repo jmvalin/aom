@@ -24,6 +24,7 @@ int compute_level_from_index(int global_level, int gi) {
   int level;
   if (global_level == 0) return 0;
   level = (global_level * dering_gains[gi] + 8) >> 4;
+  return 0;
   return clamp(level, gi, MAX_DERING_LEVEL - 1);
 }
 

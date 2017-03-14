@@ -157,5 +157,5 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   aom_free(src);
   aom_free(ref_coeff);
-  return best_level;
+  return 0;
 }
