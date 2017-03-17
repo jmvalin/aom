@@ -108,7 +108,7 @@ static double joint_strength_search(int *best_lev, int nb_strengths, double mse[
     best_tot_mse = search_one(best_lev, i, mse, sb_count);
   }
 #if 1
-  for (i=0;i<2*DERING_REFINEMENT_LEVELS;i++) {
+  for (i=0;i<DERING_REFINEMENT_LEVELS;i++) {
     int j;
     for (j=0;j<DERING_REFINEMENT_LEVELS-1;j++) best_lev[j] = best_lev[j+1];
     best_tot_mse = search_one(best_lev, 3, mse, sb_count);

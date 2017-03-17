@@ -28,7 +28,7 @@ extern "C" {
 #define DERING_REFINEMENT_BITS 2
 #define DERING_REFINEMENT_LEVELS 4
 
-#define DERING_STRENGTHS 21
+#define DERING_STRENGTHS 16
 extern int dering_level_table[DERING_STRENGTHS];
 
 int levels_to_id(const int lev[4]);

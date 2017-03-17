@@ -20,7 +20,7 @@
 #include "av1/common/od_dering.h"
 
 int dering_level_table[DERING_STRENGTHS] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28
 };
 
 int levels_to_id(const int lev[4]) {
