@@ -294,9 +294,18 @@ void od_dering(uint16_t *y, uint16_t *in, int xdec,
     if (!by) bt2 |= TILE_ABOVE_BOUNDARY;
     if (by == (1 << bsize) - 1) bt2 |= TILE_BOTTOM_BOUNDARY;
 
-    aom_clpf_block_hbd(in, &y[((bi - by) << 2 * bsize) - (bx << bsize)],
-                       OD_FILT_BSTRIDE, 1 << bsize, bx << bsize, by << bsize,
-                       1 << bsize, 1 << bsize, clpf_strength << coeff_shift,
-                       bt | bt2, clpf_damping + coeff_shift);
+    if (threshold == 0 || dir[by][bx] == 1 || dir[by][bx] == 2 ||
+        dir[by][bx] == 3) {
+      aom_clpf_block_hbd(in, &y[((bi - by) << 2 * bsize) - (bx << bsize)],
+                         OD_FILT_BSTRIDE, 1 << bsize, bx << bsize, by << bsize,
+                         1 << bsize, 1 << bsize, clpf_strength << coeff_shift,
+                         bt | bt2, clpf_damping + coeff_shift);
+    } else {
+      aom_clpf_hblock_hbd_c(in, &y[((bi - by) << 2 * bsize) - (bx << bsize)],
+                            OD_FILT_BSTRIDE, 1 << bsize, bx << bsize, by << bsize,
+                            1 << bsize, 1 << bsize, clpf_strength << coeff_shift,
+                            bt | bt2, clpf_damping + coeff_shift);
+
+    }
   }
 }

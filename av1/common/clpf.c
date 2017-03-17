@@ -88,3 +88,27 @@ void aom_clpf_block_hbd_c(const uint16_t *src, uint16_t *dst, int sstride,
     }
   }
 }
+
+// Identical to aom_clpf_block_c() apart from "src" and "dst".
+// TODO(stemidts): Put under CONFIG_AOM_HIGHBITDEPTH if CDEF do 8 bit internally
+void aom_clpf_hblock_hbd_c(const uint16_t *src, uint16_t *dst, int sstride,
+                           int dstride, int x0, int y0, int sizex, int sizey,
+                           unsigned int strength, BOUNDARY_TYPE bt,
+                           unsigned int damping) {
+  int x, y;
+  const int xmin = x0 - !(bt & TILE_LEFT_BOUNDARY) * 2;
+  const int xmax = x0 + sizex + !(bt & TILE_RIGHT_BOUNDARY) * 2 - 1;
+
+  for (y = y0; y < y0 + sizey; y++) {
+    for (x = x0; x < x0 + sizex; x++) {
+      const int X = src[y * sstride + x];
+      const int C = src[y * sstride + AOMMAX(xmin, x - 2)];
+      const int D = src[y * sstride + AOMMAX(xmin, x - 1)];
+      const int E = src[y * sstride + AOMMIN(xmax, x + 1)];
+      const int F = src[y * sstride + AOMMIN(xmax, x + 2)];
+      const int delta =
+          av1_clpf_sample(X, C, D, C, D, E, F, E, F, strength, damping);
+      dst[y * dstride + x] = X + delta;
+    }
+  }
+}

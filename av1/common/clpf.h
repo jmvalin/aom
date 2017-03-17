@@ -13,6 +13,11 @@
 
 #include "av1/common/reconinter.h"
 
+void aom_clpf_hblock_hbd_c(const uint16_t *src, uint16_t *dst, int sstride,
+                           int dstride, int x0, int y0, int sizex, int sizey,
+                           unsigned int strength, BOUNDARY_TYPE bt,
+                           unsigned int damping);
+
 int av1_clpf_sample(int X, int A, int B, int C, int D, int E, int F, int G,
                     int H, int b, unsigned int dmp);
 #endif
