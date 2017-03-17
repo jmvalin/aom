@@ -34,6 +34,49 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
+static double joint_strength_search(int *best_lev, int nb_strengths, double mse[][DERING_STRENGTHS], int sb_count)
+{
+  double best_tot_mse;
+  int lev[100];
+  int i;
+  best_tot_mse = 1e100;
+  if (nb_strengths == 4) {
+    int l0;
+    for (l0=0;l0<DERING_STRENGTHS;l0++) {
+      int l1;
+      lev[0] = l0;
+      for (l1=l0+1;l1<DERING_STRENGTHS;l1++) {
+        int l2;
+        lev[1] = l1;
+        for (l2=l1+1;l2<DERING_STRENGTHS;l2++) {
+          int l3;
+          lev[2] = l2;
+          for (l3=l2+1;l3<DERING_STRENGTHS;l3++) {
+            double tot_mse = 0;
+            lev[3] = l3;
+            for (i=0;i<sb_count;i++) {
+              int gi;
+              double best_mse = INT32_MAX;
+              for (gi = 0; gi < DERING_REFINEMENT_LEVELS; gi++) {
+                if (mse[i][lev[gi]] < best_mse) {
+                  best_mse = mse[i][lev[gi]];
+                }
+              }
+              tot_mse += best_mse;
+            }
+            if (tot_mse < best_tot_mse) {
+              for (i=0;i<4;i++) best_lev[i] = lev[i];
+              best_tot_mse = tot_mse;
+            }
+          }
+        }
+      }
+    }
+    return best_tot_mse;
+  }
+
+}
+
 int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       AV1_COMMON *cm, MACROBLOCKD *xd) {
   int r, c;
@@ -48,13 +91,14 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int dec[3];
   int pli;
   int level;
-  int best_level;
   int dering_count;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
-  double best_tot_mse=0;
   double mse[10000][DERING_STRENGTHS];
   int sb_count;
   int sb_index[10000];
+  int best_lev[4];
+  int i;
+  int lev[4];
   src = aom_malloc(sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
   ref_coeff = aom_malloc(sizeof(*ref_coeff) * cm->mi_rows * cm->mi_cols * 64);
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
@@ -83,16 +127,6 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
-  /* Pick a base threshold based on the quantizer. The threshold will then be
-     adjusted on a 64x64 basis. We use a threshold of the form T = a*Q^b,
-     where a and b are derived empirically trying to optimize rate-distortion
-     at different quantizer settings. */
-  best_level = AOMMIN(
-      MAX_DERING_LEVEL - 1,
-      (int)floor(.5 +
-                 .45 * pow(av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >>
-                               (cm->bit_depth - 8),
-                           0.6)));
   sb_count = 0;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
@@ -109,7 +143,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         int threshold;
         int16_t inbuf[OD_DERING_INBUF_SIZE];
         int16_t *in;
-        int i, j;
+        int j;
         level = dering_level_table[gi];
         threshold = level << coeff_shift;
         for (r = 0; r < nvb << bsize[0]; r++) {
@@ -152,43 +186,7 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       sb_count++;
     }
   }
-  int i;
-  int lev[4] = {0, 12, 14, 16};
-  int best_lev[4] = {0, 12, 14, 16};
-  best_tot_mse = 1e100;
-  {
-    int l0;
-    for (l0=0;l0<DERING_STRENGTHS;l0++) {
-      int l1;
-      lev[0] = l0;
-      for (l1=l0+1;l1<DERING_STRENGTHS;l1++) {
-        int l2;
-        lev[1] = l1;
-        for (l2=l1+1;l2<DERING_STRENGTHS;l2++) {
-          int l3;
-          lev[2] = l2;
-          for (l3=l2+1;l3<DERING_STRENGTHS;l3++) {
-            double tot_mse = 0;
-            lev[3] = l3;
-            for (i=0;i<sb_count;i++) {
-              int gi;
-              double best_mse = INT32_MAX;
-              for (gi = 0; gi < DERING_REFINEMENT_LEVELS; gi++) {
-                if (mse[i][lev[gi]] < best_mse) {
-                  best_mse = mse[i][lev[gi]];
-                }
-              }
-              tot_mse += best_mse;
-            }
-            if (tot_mse < best_tot_mse) {
-              for (i=0;i<4;i++) best_lev[i] = lev[i];
-              best_tot_mse = tot_mse;
-            }
-          }
-        }
-      }
-    }
-  }
+  joint_strength_search(best_lev, DERING_REFINEMENT_LEVELS, mse, sb_count);
   for (i=0;i<4;i++) lev[i] = best_lev[i];
   for (i=0;i<sb_count;i++) {
     int gi;
