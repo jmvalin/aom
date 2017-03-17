@@ -34,13 +34,43 @@ static double compute_dist(int16_t *x, int xstride, int16_t *y, int ystride,
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
-static double joint_strength_search(int *best_lev, int nb_strengths, double mse[][DERING_STRENGTHS], int sb_count)
-{
+static double search_one(int *lev, int nb_strengths, double mse[][DERING_STRENGTHS], int sb_count) {
+  double tot_mse[DERING_STRENGTHS];
+  int i, j;
+  double best_tot_mse = 1e100;
+  int best_id = 0;
+  for (i=0;i<DERING_STRENGTHS;i++)
+    tot_mse[i] = 0;
+  for (i=0;i<sb_count;i++) {
+    int gi;
+    double best_mse = INT32_MAX;
+    for (gi = 0; gi < nb_strengths; gi++) {
+      if (mse[i][lev[gi]] < best_mse) {
+        best_mse = mse[i][lev[gi]];
+      }
+    }
+    for (j=0;j<DERING_STRENGTHS;j++) {
+      double best = best_mse;
+      if (mse[i][j] < best) best = mse[i][j];
+      tot_mse[j] += best;
+    }
+  }
+  for (j=0;j<DERING_STRENGTHS;j++) {
+    if (tot_mse[j] < best_tot_mse) {
+      best_tot_mse = tot_mse[j];
+      best_id = j;
+    }
+  }
+  lev[nb_strengths] = best_id;
+  return best_tot_mse;
+}
+
+static double joint_strength_search(int *best_lev, int nb_strengths, double mse[][DERING_STRENGTHS], int sb_count) {
   double best_tot_mse;
   int lev[100];
   int i;
   best_tot_mse = 1e100;
-  if (nb_strengths == 4) {
+  if (0&&nb_strengths == 4) {
     int l0;
     for (l0=0;l0<DERING_STRENGTHS;l0++) {
       int l1;
@@ -74,7 +104,17 @@ static double joint_strength_search(int *best_lev, int nb_strengths, double mse[
     }
     return best_tot_mse;
   }
-
+  for (i=0;i<DERING_REFINEMENT_LEVELS;i++) {
+    best_tot_mse = search_one(best_lev, i, mse, sb_count);
+  }
+#if 0
+  for (i=0;i<DERING_REFINEMENT_LEVELS;i++) {
+    int j;
+    for (j=0;j<DERING_REFINEMENT_LEVELS-1;j++) best_lev[j] = best_lev[j+1];
+    best_tot_mse = search_one(best_lev, 3, mse, sb_count);
+  }
+#endif
+  return best_tot_mse;
 }
 
 int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
@@ -187,6 +227,10 @@ int av1_dering_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
   }
   joint_strength_search(best_lev, DERING_REFINEMENT_LEVELS, mse, sb_count);
+  /*best_lev[0] = 0;
+  best_lev[1] = 0;
+  best_lev[2] = 0;
+  best_lev[3] = 0;*/
   for (i=0;i<4;i++) lev[i] = best_lev[i];
   for (i=0;i<sb_count;i++) {
     int gi;
