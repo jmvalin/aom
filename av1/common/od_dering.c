@@ -19,6 +19,7 @@
 #include "./aom_dsp_rtcd.h"
 #include "./av1_rtcd.h"
 #include "./cdef.h"
+#include "./clpf.h"
 
 /* Generated from gen_filter_tables.c. */
 const int OD_DIRECTION_OFFSETS_TABLE[8][3] = {
