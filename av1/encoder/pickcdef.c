@@ -20,6 +20,65 @@
 #include "av1/encoder/clpf_rdo.h"
 #include "av1/encoder/encoder.h"
 
+#define TOTAL_STRENGTHS (DERING_STRENGTHS*CLPF_STRENGTHS)
+
+/* Search for the best strength to add as an option, knowing we
+   already selected nb_strengths options. */
+static uint64_t search_one(int *lev, int nb_strengths,
+    uint64_t mse[][TOTAL_STRENGTHS], int sb_count) {
+  uint64_t tot_mse[TOTAL_STRENGTHS];
+  int i, j;
+  uint64_t best_tot_mse = 1000000000000000;
+  int best_id = 0;
+  for (i=0;i<TOTAL_STRENGTHS;i++)
+    tot_mse[i] = 0;
+  for (i=0;i<sb_count;i++) {
+    int gi;
+    uint64_t best_mse = 1000000000000000;
+    /* Find best mse among already selected options. */
+    for (gi = 0; gi < nb_strengths; gi++) {
+      if (mse[i][lev[gi]] < best_mse) {
+        best_mse = mse[i][lev[gi]];
+      }
+    }
+    /* Find best mse when adding each possible new option. */
+    for (j=0;j<TOTAL_STRENGTHS;j++) {
+      uint64_t best = best_mse;
+      if (mse[i][j] < best) best = mse[i][j];
+      tot_mse[j] += best;
+    }
+  }
+  for (j=0;j<TOTAL_STRENGTHS;j++) {
+    if (tot_mse[j] < best_tot_mse) {
+      best_tot_mse = tot_mse[j];
+      best_id = j;
+    }
+  }
+  lev[nb_strengths] = best_id;
+  return best_tot_mse;
+}
+
+static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
+    uint64_t mse[][TOTAL_STRENGTHS], int sb_count) {
+  uint64_t best_tot_mse;
+  int i;
+  best_tot_mse = 1000000000000000;
+  /* Greedy search: add one strength options at a time. */
+  for (i=0;i<nb_strengths;i++) {
+    best_tot_mse = search_one(best_lev, i, mse, sb_count);
+  }
+#if 1
+  /* Trying to refine the greedy search by reconsidering each
+     already-selected option. */
+  for (i=0;i<nb_strengths;i++) {
+    int j;
+    for (j=0;j<nb_strengths-1;j++) best_lev[j] = best_lev[j+1];
+    best_tot_mse = search_one(best_lev, nb_strengths-1, mse, sb_count);
+  }
+#endif
+  return best_tot_mse;
+}
+
 static double compute_dist(uint16_t *x, int xstride, uint16_t *y, int ystride,
                            int nhb, int nvb, int coeff_shift) {
   int i, j;
@@ -60,7 +119,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
   int lev[DERING_REFINEMENT_LEVELS];
-  int best_lev[DERING_REFINEMENT_LEVELS];
+  int best_lev[16];
   int str[CLPF_REFINEMENT_LEVELS];
   int best_str[CLPF_REFINEMENT_LEVELS];
   double lambda = exp(cm->base_qindex / 36.0);
@@ -155,6 +214,10 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       sb_count++;
     }
   }
+
+  best_tot_mse = joint_strength_search(best_lev, 8, mse, sb_count);
+  printf("\n\nmse: %lld\n", best_tot_mse);
+
   best_tot_mse = (uint64_t)1 << 63;
 
   int l0;
@@ -196,7 +259,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                 dering_diffs += lev[i] != lev[i - 1];
               for (i = 1; i < CLPF_REFINEMENT_LEVELS; i++)
                 clpf_diffs += str[i] != str[i - 1];
-              tot_mse += (uint64_t)(sb_count * lambda *
+              tot_mse += 0*(uint64_t)(sb_count * lambda *
                                     (log2[dering_diffs] + log2[clpf_diffs]));
 
               if (tot_mse < best_tot_mse) {
@@ -212,6 +275,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       }
     }
   }
+  printf("mse: %lld\n", best_tot_mse);
   for (i = 0; i < DERING_REFINEMENT_LEVELS; i++) lev[i] = best_lev[i];
   for (i = 0; i < CLPF_REFINEMENT_LEVELS; i++) str[i] = best_str[i];
 
