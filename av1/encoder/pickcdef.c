@@ -55,7 +55,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int *sb_index = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
-  uint64_t(*mse)[DERING_STRENGTHS][CLPF_STRENGTHS] =
+  uint64_t(*mse)[DERING_STRENGTHS*CLPF_STRENGTHS] =
       aom_malloc(sizeof(*mse) * nvsb * nhsb);
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
@@ -143,7 +143,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                     i + (i == 3), clpf_damping, coeff_shift);
           copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[0], tmp_dst,
                                      dlist, dering_count, bsize[0]);
-          mse[sb_count][gi][i] = (int)compute_dist(
+          mse[sb_count][gi*CLPF_STRENGTHS + i] = (int)compute_dist(
               dst, MAX_MIB_SIZE << bsize[0],
               &ref_coeff[(sbr * stride * MAX_MIB_SIZE << bsize[0]) +
                          (sbc * MAX_MIB_SIZE << bsize[0])],
@@ -182,8 +182,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                 uint64_t best_mse = (uint64_t)1 << 63;
                 for (gi = 0; gi < DERING_REFINEMENT_LEVELS; gi++) {
                   for (cs = 0; cs < CLPF_REFINEMENT_LEVELS; cs++) {
-                    if (mse[i][lev[gi]][str[cs]] < best_mse) {
-                      best_mse = mse[i][lev[gi]][str[cs]];
+                    if (mse[i][lev[gi]*CLPF_STRENGTHS + str[cs]] < best_mse) {
+                      best_mse = mse[i][lev[gi]*CLPF_STRENGTHS + str[cs]];
                     }
                   }
                 }
@@ -225,10 +225,10 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     best_gi = best_clpf = 0;
     for (gi = 0; gi < (1 << cm->dering_bits); gi++) {
       for (cs = 0; cs < (1 << cm->clpf_bits); cs++) {
-        if (mse[i][lev[gi]][str[cs]] < best_mse) {
+        if (mse[i][lev[gi]*CLPF_STRENGTHS + str[cs]] < best_mse) {
           best_gi = gi;
           best_clpf = cs;
-          best_mse = mse[i][lev[gi]][str[cs]];
+          best_mse = mse[i][lev[gi]*CLPF_STRENGTHS + str[cs]];
         }
       }
     }
