@@ -122,7 +122,10 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int best_lev[CDEF_MAX_STRENGTHS];
   int nb_strengths;
   int nb_strength_bits;
-  double lambda = .5*exp(cm->base_qindex / 36.0);
+  int quantizer;
+  double lambda;
+  quantizer = av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >> (cm->bit_depth - 8);
+  lambda = .12*quantizer*quantizer/256.;
 
   src = aom_memalign(32, sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
   ref_coeff =
