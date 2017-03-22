@@ -219,7 +219,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   for (i=0;i<=3;i++) {
     nb_strengths = 1 << i;
     tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
-    tot_mse += (uint64_t)(4* sb_count * lambda * i);
+    tot_mse += (uint64_t)(sb_count * lambda * i);
+    tot_mse += (uint64_t)(nb_strengths * lambda * CDEF_STRENGTH_BITS);
     if (tot_mse < best_tot_mse) {
       best_tot_mse = tot_mse;
       nb_strength_bits = i;
