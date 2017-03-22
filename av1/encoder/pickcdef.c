@@ -28,13 +28,13 @@ static uint64_t search_one(int *lev, int nb_strengths,
     uint64_t mse[][TOTAL_STRENGTHS], int sb_count) {
   uint64_t tot_mse[TOTAL_STRENGTHS];
   int i, j;
-  uint64_t best_tot_mse = 1000000000000000;
+  uint64_t best_tot_mse = (uint64_t)1 << 63;
   int best_id = 0;
   for (i=0;i<TOTAL_STRENGTHS;i++)
     tot_mse[i] = 0;
   for (i=0;i<sb_count;i++) {
     int gi;
-    uint64_t best_mse = 1000000000000000;
+    uint64_t best_mse = (uint64_t)1 << 63;
     /* Find best mse among already selected options. */
     for (gi = 0; gi < nb_strengths; gi++) {
       if (mse[i][lev[gi]] < best_mse) {
@@ -58,11 +58,12 @@ static uint64_t search_one(int *lev, int nb_strengths,
   return best_tot_mse;
 }
 
+/* Search for the set of strengths that minimizes mse. */
 static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
     uint64_t mse[][TOTAL_STRENGTHS], int sb_count) {
   uint64_t best_tot_mse;
   int i;
-  best_tot_mse = 1000000000000000;
+  best_tot_mse = (uint64_t)1 << 63;
   /* Greedy search: add one strength options at a time. */
   for (i=0;i<nb_strengths;i++) {
     best_tot_mse = search_one(best_lev, i, mse, sb_count);
@@ -109,7 +110,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int level;
   int dering_count;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
-  uint64_t best_tot_mse = 1000000000000000000;
+  uint64_t best_tot_mse = (uint64_t)1 << 63;
   uint64_t tot_mse;
   int sb_count;
   int nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
@@ -218,10 +219,13 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
 
   nb_strength_bits = 0;
+  /* Search for different number of signalling bits. */
   for (i=0;i<=3;i++) {
     nb_strengths = 1 << i;
     tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
+    /* Count superblock signalling cost. */
     tot_mse += (uint64_t)(sb_count * lambda * i);
+    /* Count header signalling cost. */
     tot_mse += (uint64_t)(nb_strengths * lambda * CDEF_STRENGTH_BITS);
     if (tot_mse < best_tot_mse) {
       best_tot_mse = tot_mse;

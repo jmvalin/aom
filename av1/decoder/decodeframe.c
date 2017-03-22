@@ -4924,8 +4924,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
   }
 
 #if CONFIG_CDEF
-  if ((1 || cm->clpf_strength_u || cm->clpf_strength_v) &&
-      !cm->skip_loop_filter) {
+  if (!cm->skip_loop_filter) {
     av1_cdef_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->clpf_strength_u,
                    cm->clpf_strength_v);
   }
