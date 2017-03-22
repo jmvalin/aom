@@ -71,7 +71,7 @@ static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
 #if 1
   /* Trying to refine the greedy search by reconsidering each
      already-selected option. */
-  for (i=0;i<nb_strengths;i++) {
+  for (i=0;i<4*nb_strengths;i++) {
     int j;
     for (j=0;j<nb_strengths-1;j++) best_lev[j] = best_lev[j+1];
     best_tot_mse = search_one(best_lev, nb_strengths-1, mse, sb_count);
