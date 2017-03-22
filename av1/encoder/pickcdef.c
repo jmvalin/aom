@@ -114,6 +114,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int *sb_index = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
+  int *selected_strength = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
   uint64_t(*mse[3])[TOTAL_STRENGTHS];
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
@@ -252,8 +253,30 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         best_mse = mse[0][i][best_lev[gi]];
       }
     }
+    selected_strength[i] = best_gi;
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
+  int str;
+  printf("\n\n");
+  for (str = 0; str < cm->nb_cdef_strengths; str++) {
+    int gi;
+    int best_gi = 0;
+    best_tot_mse = (uint64_t)1 << 63;
+    for (gi = 0; gi < TOTAL_STRENGTHS; gi++) {
+      tot_mse = 0;
+      for (i = 0; i < sb_count; i++) {
+        if (selected_strength[i] == str) {
+          tot_mse += mse[1][i][gi] + mse[2][i][gi];
+        }
+      }
+      if (tot_mse < best_tot_mse) {
+        best_gi = gi;
+        best_tot_mse = tot_mse;
+      }
+    }
+    printf("%d %d\n", best_lev[str], best_gi);
+  }
+  printf("\n\n");
 #if 0
   printf("\n\n");
   for (pli = 1; pli < nplanes; pli++) {
