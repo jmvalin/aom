@@ -109,7 +109,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int level;
   int dering_count;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
-  uint64_t best_tot_mse = 0;
+  uint64_t best_tot_mse = 1000000000000000000;
+  uint64_t tot_mse;
   int sb_count;
   int nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
@@ -214,9 +215,17 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
   }
 
-  nb_strength_bits = 3;
+  nb_strength_bits = 0;
+  for (i=0;i<=3;i++) {
+    nb_strengths = 1 << i;
+    tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
+    tot_mse += (uint64_t)(sb_count * lambda * i);
+    if (tot_mse < best_tot_mse) {
+      best_tot_mse = tot_mse;
+      nb_strength_bits = i;
+    }
+  }
   nb_strengths = 1 << nb_strength_bits;
-  best_tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
 
   cm->cdef_bits = nb_strength_bits;
   cm->nb_cdef_strengths = nb_strengths;
