@@ -212,8 +212,7 @@ static void copy_sb8_16(UNUSED AV1_COMMON *cm, uint16_t *dst, int dstride,
 }
 
 void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
-                    uint32_t global_level, int clpf_strength_u,
-                    int clpf_strength_v) {
+                    int clpf_strength_u, int clpf_strength_v) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
@@ -231,12 +230,11 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
   int dering_left;
   int coeff_shift = AOMMAX(cm->bit_depth - 8, 0);
   int nplanes = 3;
-  int lev[DERING_REFINEMENT_LEVELS];
-  int str[CLPF_REFINEMENT_LEVELS];
+  int *lev;
   int chroma_dering =
       xd->plane[1].subsampling_x == xd->plane[1].subsampling_y &&
       xd->plane[2].subsampling_x == xd->plane[2].subsampling_y;
-  id_to_levels(lev, str, global_level);
+  lev = cm->cdef_strengths;
   nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
@@ -277,11 +275,11 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
       level = dering_level_table
           [lev[cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                                    MAX_MIB_SIZE * sbc]
-                   ->mbmi.dering_gain]];
+                   ->mbmi.cdef_strength]/CLPF_STRENGTHS];
       clpf_strength =
-          str[cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
+          lev[cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                                   MAX_MIB_SIZE * sbc]
-                  ->mbmi.clpf_strength];
+                  ->mbmi.cdef_strength]%CLPF_STRENGTHS;
       clpf_strength += clpf_strength == 3;
       curr_row_dering[sbc] = 0;
       if ((level == 0 && clpf_strength == 0) ||

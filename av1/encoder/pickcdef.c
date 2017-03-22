@@ -118,10 +118,9 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       aom_malloc(sizeof(*mse) * nvsb * nhsb);
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
-  int lev[DERING_REFINEMENT_LEVELS];
-  int best_lev[16];
-  int str[CLPF_REFINEMENT_LEVELS];
-  int best_str[CLPF_REFINEMENT_LEVELS];
+  int best_lev[CDEF_MAX_STRENGTHS];
+  int nb_strengths;
+  int nb_strength_bits;
   double lambda = exp(cm->base_qindex / 36.0);
   static int log2[] = { 0, 1, 2, 2 };
 
@@ -215,7 +214,12 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
   }
 
-  best_tot_mse = joint_strength_search(best_lev, 8, mse, sb_count);
+  nb_strength_bits = 3;
+  nb_strengths = 1 << nb_strength_bits;
+  best_tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
+
+
+#if 0
   printf("\n\nmse: %lld\n", best_tot_mse);
 
   best_tot_mse = (uint64_t)1 << 63;
@@ -299,6 +303,25 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     cm->mi_grid_visible[sb_index[i]]->mbmi.dering_gain = best_gi;
     cm->mi_grid_visible[sb_index[i]]->mbmi.clpf_strength = best_clpf;
   }
+#endif
+
+  cm->cdef_bits = nb_strength_bits;
+  cm->nb_cdef_strengths = nb_strengths;
+  for (i=0;i<nb_strengths;i++)
+    cm->cdef_strengths[i] = best_lev[i];
+  for (i = 0; i < sb_count; i++) {
+    int gi;
+    int best_gi;
+    uint64_t best_mse = (uint64_t)1 << 63;
+    best_gi = 0;
+    for (gi = 0; gi < cm->nb_cdef_strengths; gi++) {
+      if (mse[i][best_lev[gi]] < best_mse) {
+        best_gi = gi;
+        best_mse = mse[i][best_lev[gi]];
+      }
+    }
+    cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
+  }
 
   aom_free(src);
   aom_free(ref_coeff);
@@ -309,5 +332,4 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                       AOM_PLANE_U);
   av1_clpf_test_plane(cm->frame_to_show, ref, cm, &cm->clpf_strength_v,
                       AOM_PLANE_V);
-  cm->dering_level = levels_to_id(best_lev, best_str);
 }
