@@ -114,8 +114,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int nvsb = (cm->mi_rows + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int *sb_index = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
-  uint64_t(*mse)[DERING_STRENGTHS * CLPF_STRENGTHS] =
-      aom_malloc(sizeof(*mse) * nvsb * nhsb);
+  uint64_t(*mse[3])[TOTAL_STRENGTHS];
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
   int best_lev[CDEF_MAX_STRENGTHS];
@@ -130,6 +129,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
   for (pli=0;pli<nplanes;pli++) {
+    mse[pli] = aom_malloc(sizeof(*mse) * nvsb * nhsb);
     src[pli] = aom_memalign(32, sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     ref_coeff[pli] =
         aom_memalign(32, sizeof(*ref_coeff) * cm->mi_rows * cm->mi_cols * 64);
@@ -177,6 +177,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         int j;
         level = dering_level_table[gi / CLPF_STRENGTHS];
         threshold = level << coeff_shift;
+        for (pli=0;pli<nplanes;pli++) {
         for (r = 0; r < nvb << bsize[pli]; r++) {
           for (c = 0; c < nhb << bsize[pli]; c++) {
             dst[(r * MAX_MIB_SIZE << bsize[pli]) + c] =
@@ -208,13 +209,14 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[pli], tmp_dst,
                                    dlist, dering_count, bsize[pli]);
-        mse[sb_count][gi] = (int)compute_dist(
+        mse[pli][sb_count][gi] = (int)compute_dist(
             dst, MAX_MIB_SIZE << bsize[pli],
             &ref_coeff[pli][(sbr * stride * MAX_MIB_SIZE << bsize[pli]) +
                        (sbc * MAX_MIB_SIZE << bsize[pli])],
             stride, nhb, nvb, coeff_shift);
         sb_index[sb_count] =
             MAX_MIB_SIZE * sbr * cm->mi_stride + MAX_MIB_SIZE * sbc;
+      }
       }
       sb_count++;
     }
@@ -224,7 +226,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   /* Search for different number of signalling bits. */
   for (i = 0; i <= 3; i++) {
     nb_strengths = 1 << i;
-    tot_mse = joint_strength_search(best_lev, nb_strengths, mse, sb_count);
+    tot_mse = joint_strength_search(best_lev, nb_strengths, mse[0], sb_count);
     /* Count superblock signalling cost. */
     tot_mse += (uint64_t)(sb_count * lambda * i);
     /* Count header signalling cost. */
@@ -245,9 +247,9 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     uint64_t best_mse = (uint64_t)1 << 63;
     best_gi = 0;
     for (gi = 0; gi < cm->nb_cdef_strengths; gi++) {
-      if (mse[i][best_lev[gi]] < best_mse) {
+      if (mse[0][i][best_lev[gi]] < best_mse) {
         best_gi = gi;
-        best_mse = mse[i][best_lev[gi]];
+        best_mse = mse[0][i][best_lev[gi]];
       }
     }
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
