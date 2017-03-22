@@ -129,7 +129,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
   for (pli=0;pli<nplanes;pli++) {
-    mse[pli] = aom_malloc(sizeof(*mse) * nvsb * nhsb);
+    mse[pli] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
     src[pli] = aom_memalign(32, sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     ref_coeff[pli] =
         aom_memalign(32, sizeof(*ref_coeff) * cm->mi_rows * cm->mi_cols * 64);
@@ -254,10 +254,26 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
-
-  aom_free(src);
-  aom_free(ref_coeff);
-  aom_free(mse);
+#if 0
+  printf("\n\n");
+  for (pli = 1; pli < nplanes; pli++) {
+    int gi;
+    for (gi = 0; gi < 84; gi++) {
+      double sum = 0;
+      for (i = 0; i < sb_count; i++) {
+        sum += mse[pli][i][gi];
+      }
+      printf("%f\n", sum);
+    }
+    printf("\n\n\n");
+  }
+  printf("\n");
+#endif
+  for (pli = 0; pli < nplanes; pli++) {
+    aom_free(src[pli]);
+    aom_free(ref_coeff[pli]);
+    aom_free(mse[pli]);
+  }
   aom_free(sb_index);
 
   av1_clpf_test_plane(cm->frame_to_show, ref, cm, &cm->clpf_strength_u,
