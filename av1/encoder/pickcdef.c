@@ -264,7 +264,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
   int str;
-  printf("\n\n");
+  //printf("\n\n");
   for (str = 0; str < cm->nb_cdef_strengths; str++) {
     int gi;
     int best_gi = 0;
@@ -281,10 +281,10 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         best_tot_mse = tot_mse;
       }
     }
-    cm->cdef_uv_strengths[i] = best_gi;
-    printf("%d %d\n", best_lev[str], best_gi);
+    cm->cdef_uv_strengths[str] = best_gi;
+    //printf("%d %d\n", best_lev[str], best_gi);
   }
-  printf("\n\n");
+  //printf("\n\n");
 #if 0
   printf("\n\n");
   for (pli = 1; pli < nplanes; pli++) {
