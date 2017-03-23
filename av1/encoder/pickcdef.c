@@ -172,7 +172,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       }
     }
   }
-  pli = 0;
   sb_count = 0;
   for (sbr = 0; sbr < nvsb; sbr++) {
     for (sbc = 0; sbc < nhsb; sbc++) {
@@ -205,8 +204,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         in = inbuf + OD_FILT_VBORDER * OD_FILT_BSTRIDE + OD_FILT_HBORDER;
         /* We avoid filtering the pixels for which some of the pixels to average
            are outside the frame. We could change the filter instead, but it
-           would
-           add special cases for any future vectorization. */
+           would add special cases for any future vectorization. */
         for (i = 0; i < OD_DERING_INBUF_SIZE; i++)
           inbuf[i] = OD_DERING_VERY_LARGE;
         for (i = -OD_FILT_VBORDER * (sbr != 0);
@@ -221,13 +219,11 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           }
         }
         clpf_strength = gi % CLPF_STRENGTHS;
-#if 1
         od_dering(tmp_dst, in, dec[pli], dir, pli, dlist, dering_count, threshold,
                   clpf_strength + (clpf_strength == 3), clpf_damping,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[pli], tmp_dst,
                                    dlist, dering_count, bsize[pli]);
-#endif
         mse[pli][sb_count][gi] = (int)compute_dist(
             dst, MAX_MIB_SIZE << bsize[pli],
             &ref_coeff[pli][(sbr * stride[pli] * MAX_MIB_SIZE << bsize[pli]) +
@@ -317,9 +313,4 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     aom_free(mse[pli]);
   }
   aom_free(sb_index);
-
-  av1_clpf_test_plane(cm->frame_to_show, ref, cm, &cm->clpf_strength_u,
-                      AOM_PLANE_U);
-  av1_clpf_test_plane(cm->frame_to_show, ref, cm, &cm->clpf_strength_v,
-                      AOM_PLANE_V);
 }

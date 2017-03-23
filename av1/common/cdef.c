@@ -143,8 +143,7 @@ static void copy_sb8_16(UNUSED AV1_COMMON *cm, uint16_t *dst, int dstride,
 #endif
 }
 
-void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
-                    int clpf_strength_u, int clpf_strength_v) {
+void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd) {
   int r, c;
   int sbr, sbc;
   int nhsb, nvsb;
