@@ -90,7 +90,7 @@ static double compute_dist(uint16_t *x, int xstride, uint16_t *y, int ystride,
       sum += tmp * tmp;
     }
   }
-  printf("[%f]\n", sum);
+  //printf("[%f]\n", sum);
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
@@ -184,7 +184,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         int j;
         level = dering_level_table[gi / CLPF_STRENGTHS];
         threshold = level << coeff_shift;
-        printf("%d %d %d: ", sbr, sbc, gi);
+        //printf("%d %d %d: ", sbr, sbc, gi);
         for (pli=0;pli<nplanes;pli++) {
         for (r = 0; r < nvb << bsize[pli]; r++) {
           for (c = 0; c < nhb << bsize[pli]; c++) {
@@ -213,22 +213,22 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         }
         clpf_strength = gi % CLPF_STRENGTHS;
 #if 1
-        od_dering(tmp_dst, in, 0, dir, 0, dlist, dering_count, threshold,
+        od_dering(tmp_dst, in, dec[pli], dir, pli, dlist, dering_count, threshold,
                   clpf_strength + (clpf_strength == 3), clpf_damping,
                   coeff_shift);
         copy_dering_16bit_to_16bit(dst, MAX_MIB_SIZE << bsize[pli], tmp_dst,
                                    dlist, dering_count, bsize[pli]);
 #endif
-        mse[pli][sb_count][gi] = compute_dist(
+        mse[pli][sb_count][gi] = (int)compute_dist(
             dst, MAX_MIB_SIZE << bsize[pli],
             &ref_coeff[pli][(sbr * stride[pli] * MAX_MIB_SIZE << bsize[pli]) +
                        (sbc * MAX_MIB_SIZE << bsize[pli])],
             stride[pli], nhb, nvb, coeff_shift, bsize[pli]);
-        printf(" %f ", (double)mse[pli][sb_count][gi]);
+        //printf(" %f ", (double)mse[pli][sb_count][gi]);
         sb_index[sb_count] =
             MAX_MIB_SIZE * sbr * cm->mi_stride + MAX_MIB_SIZE * sbc;
       }
-        printf("\n");
+        //printf("\n");
       }
       sb_count++;
     }
