@@ -2677,8 +2677,6 @@ static void setup_cdef(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
     cm->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
     cm->cdef_uv_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
   }
-  cm->clpf_strength_u = aom_rb_read_literal(rb, 2);
-  cm->clpf_strength_v = aom_rb_read_literal(rb, 2);
 }
 #endif  // CONFIG_CDEF
 
@@ -4952,8 +4950,7 @@ void av1_decode_frame(AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_CDEF
   if (!cm->skip_loop_filter) {
-    av1_cdef_frame(&pbi->cur_buf->buf, cm, &pbi->mb, cm->clpf_strength_u,
-                   cm->clpf_strength_v);
+    av1_cdef_frame(&pbi->cur_buf->buf, cm, &pbi->mb);
   }
 #endif  // CONFIG_CDEF
 

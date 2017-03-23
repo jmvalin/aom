@@ -401,8 +401,6 @@ typedef struct AV1Common {
   int cdef_strengths[CDEF_MAX_STRENGTHS];
   int cdef_uv_strengths[CDEF_MAX_STRENGTHS];
   int cdef_bits;
-  int clpf_strength_u;
-  int clpf_strength_v;
 #endif
 
 #if CONFIG_DELTA_Q
