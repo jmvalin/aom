@@ -90,7 +90,6 @@ static double compute_dist(uint16_t *x, int xstride, uint16_t *y, int ystride,
       sum += tmp * tmp;
     }
   }
-  //printf("[%f]\n", sum);
   return sum / (double)(1 << 2 * coeff_shift);
 }
 
@@ -184,7 +183,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         int j;
         level = dering_level_table[gi / CLPF_STRENGTHS];
         threshold = level << coeff_shift;
-        //printf("%d %d %d: ", sbr, sbc, gi);
         for (pli=0;pli<nplanes;pli++) {
         for (r = 0; r < nvb << bsize[pli]; r++) {
           for (c = 0; c < nhb << bsize[pli]; c++) {
@@ -224,11 +222,9 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
             &ref_coeff[pli][(sbr * stride[pli] * MAX_MIB_SIZE << bsize[pli]) +
                        (sbc * MAX_MIB_SIZE << bsize[pli])],
             stride[pli], nhb, nvb, coeff_shift, bsize[pli]);
-        //printf(" %f ", (double)mse[pli][sb_count][gi]);
         sb_index[sb_count] =
             MAX_MIB_SIZE * sbr * cm->mi_stride + MAX_MIB_SIZE * sbc;
       }
-        //printf("\n");
       }
       sb_count++;
     }
@@ -285,6 +281,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         best_tot_mse = tot_mse;
       }
     }
+    cm->cdef_uv_strengths[i] = best_gi;
     printf("%d %d\n", best_lev[str], best_gi);
   }
   printf("\n\n");
