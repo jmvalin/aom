@@ -130,6 +130,22 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
   for (pli=0;pli<nplanes;pli++) {
+    uint8_t *ref_buffer;
+    int ref_stride;
+    switch (pli) {
+    case 0:
+      ref_buffer = ref->y_buffer;
+      ref_stride = ref->y_stride;
+      break;
+    case 1:
+      ref_buffer = ref->u_buffer;
+      ref_stride = ref->uv_stride;
+      break;
+    case 2:
+      ref_buffer = ref->v_buffer;
+      ref_stride = ref->uv_stride;
+      break;
+    }
     mse[pli] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
     src[pli] = aom_memalign(32, sizeof(*src) * cm->mi_rows * cm->mi_cols * 64);
     ref_coeff[pli] =
@@ -144,17 +160,12 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           src[pli][r * stride[pli] + c] = CONVERT_TO_SHORTPTR(
               xd->plane[pli].dst.buf)[r * xd->plane[pli].dst.stride + c];
           ref_coeff[pli][r * stride[pli] + c] =
-              CONVERT_TO_SHORTPTR(ref->y_buffer)[r * ref->y_stride + c];
+              CONVERT_TO_SHORTPTR(ref_buffer)[r * ref_stride + c];
         } else {
 #endif
           src[pli][r * stride[pli] + c] =
               xd->plane[pli].dst.buf[r * xd->plane[pli].dst.stride + c];
-          if (pli == 0)
-            ref_coeff[pli][r * stride[pli] + c] = ref->y_buffer[r * ref->y_stride + c];
-          else if (pli == 1)
-            ref_coeff[pli][r * stride[pli] + c] = ref->u_buffer[r * ref->uv_stride + c];
-          else
-            ref_coeff[pli][r * stride[pli] + c] = ref->v_buffer[r * ref->uv_stride + c];
+          ref_coeff[pli][r * stride[pli] + c] = ref_buffer[r * ref_stride + c];
 #if CONFIG_AOM_HIGHBITDEPTH
         }
 #endif
