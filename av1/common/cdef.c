@@ -20,9 +20,9 @@
 #include "av1/common/onyxc_int.h"
 #include "av1/common/reconinter.h"
 
-int dering_level_table[DERING_STRENGTHS] = {
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
-};
+// i * exp(i / 10.4)
+int dering_level_table[DERING_STRENGTHS] = { 0,  1,  2,  4,  5,  8,  10, 13,
+                                             17, 21, 26, 31, 38, 45, 53, 63 };
 
 int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
   int r, c;

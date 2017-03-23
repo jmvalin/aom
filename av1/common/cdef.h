@@ -12,9 +12,9 @@
 #define AV1_COMMON_DERING_H_
 
 #define CDEF_MAX_STRENGTHS 16
-#define CDEF_STRENGTH_BITS 7
+#define CDEF_STRENGTH_BITS 6
 
-#define DERING_STRENGTHS 21
+#define DERING_STRENGTHS 16
 #define CLPF_STRENGTHS 4
 
 #include "./aom_config.h"
