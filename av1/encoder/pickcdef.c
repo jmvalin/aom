@@ -124,6 +124,9 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int quantizer;
   double lambda;
   int nplanes = 3;
+  int chroma_dering =
+      xd->plane[1].subsampling_x == xd->plane[1].subsampling_y &&
+      xd->plane[2].subsampling_x == xd->plane[2].subsampling_y;
   quantizer =
       av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >> (cm->bit_depth - 8);
   lambda = .12 * quantizer * quantizer / 256.;
@@ -194,6 +197,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         level = dering_level_table[gi / CLPF_STRENGTHS];
         threshold = level << coeff_shift;
         for (pli=0;pli<nplanes;pli++) {
+          if (pli > 0 && !chroma_dering) threshold = 0;
         for (r = 0; r < nvb << bsize[pli]; r++) {
           for (c = 0; c < nhb << bsize[pli]; c++) {
             dst[(r * MAX_MIB_SIZE << bsize[pli]) + c] =
@@ -271,7 +275,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
   int str;
-  //printf("\n\n");
+  /* For each strength option we picked in luma, find the optimal chroma
+     strength. */
   for (str = 0; str < cm->nb_cdef_strengths; str++) {
     int gi;
     int best_gi = 0;
@@ -289,24 +294,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       }
     }
     cm->cdef_uv_strengths[str] = best_gi;
-    //printf("%d %d\n", best_lev[str], best_gi);
   }
-  //printf("\n\n");
-#if 0
-  printf("\n\n");
-  for (pli = 1; pli < nplanes; pli++) {
-    int gi;
-    for (gi = 0; gi < 84; gi++) {
-      double sum = 0;
-      for (i = 0; i < sb_count; i++) {
-        sum += mse[pli][i][gi];
-      }
-      printf("%f\n", sum);
-    }
-    printf("\n\n\n");
-  }
-  printf("\n");
-#endif
   for (pli = 0; pli < nplanes; pli++) {
     aom_free(src[pli]);
     aom_free(ref_coeff[pli]);
