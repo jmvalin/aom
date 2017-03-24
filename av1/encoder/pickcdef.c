@@ -129,7 +129,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int *sb_index = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
   int *selected_strength = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
   uint64_t(*mse[3])[TOTAL_STRENGTHS];
-  int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
   int best_lev[CDEF_MAX_STRENGTHS];
   int nb_strengths;
@@ -217,6 +216,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         level = dering_level_table[gi / CLPF_STRENGTHS];
         threshold = level << coeff_shift;
         for (pli = 0; pli < nplanes; pli++) {
+          int clpf_damping = 3 - (pli != AOM_PLANE_Y) + (cm->base_qindex >> 6);
           if (pli > 0 && !chroma_dering) threshold = 0;
           in = inbuf + OD_FILT_VBORDER * OD_FILT_BSTRIDE + OD_FILT_HBORDER;
           /* We avoid filtering the pixels for which some of the pixels to
