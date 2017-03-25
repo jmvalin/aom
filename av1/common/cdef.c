@@ -37,7 +37,7 @@ int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
   if (maxr > MAX_MIB_SIZE) maxr = MAX_MIB_SIZE;
   if (maxc > MAX_MIB_SIZE) maxc = MAX_MIB_SIZE;
 #endif
-
+  if (cm->frame_type == KEY_FRAME) return 0;
   for (r = 0; r < maxr; r++) {
     for (c = 0; c < maxc; c++) {
       skip = skip &&
@@ -68,7 +68,7 @@ int sb_compute_dering_list(const AV1_COMMON *const cm, int mi_row, int mi_col,
     MODE_INFO **grid_row;
     grid_row = &grid[(mi_row + r) * cm->mi_stride + mi_col];
     for (c = 0; c < maxc; c++) {
-      if (!grid_row[c]->mbmi.skip) {
+      if (cm->frame_type == KEY_FRAME || !grid_row[c]->mbmi.skip) {
         dlist[count].by = r;
         dlist[count].bx = c;
         count++;
