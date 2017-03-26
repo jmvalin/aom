@@ -98,6 +98,7 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
   uint64_t svar = 0;
   uint64_t dvar = 0;
   int i, j;
+  double act;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       int e = dst[i * dstride + j] - src[i * sstride + j];
@@ -117,7 +118,8 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
       dvar += tmp*tmp;
     }
   }
-  return sum * (svar + dvar + 100) / (100 + sqrt(svar)*sqrt(dvar));
+  act = pow((svar+1000)/5000., -.333);
+  return act*sum * (svar + dvar + 100) / (100 + sqrt(svar)*sqrt(dvar));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
