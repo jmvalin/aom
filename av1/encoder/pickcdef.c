@@ -92,15 +92,26 @@ static void copy_sb16_16(uint16_t *dst, int dstride, const uint16_t *src,
 
 static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
                                      int sstride) {
-  uint64_t sum = 0;
+  uint64_t svar = 0;
+  uint64_t dvar = 0;
+  uint64_t sum_s = 0;
+  uint64_t sum_d = 0;
+  uint64_t sum_s2 = 0;
+  uint64_t sum_d2 = 0;
+  uint64_t sum_sd = 0;
   int i, j;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
-      int e = dst[i * dstride + j] - src[i * sstride + j];
-      sum += e * e;
+      sum_s += src[i * sstride + j];
+      sum_d += dst[i * dstride + j];
+      sum_s2 += src[i * sstride + j]*src[i * sstride + j];
+      sum_d2 += dst[i * dstride + j]*dst[i * dstride + j];
+      sum_sd += src[i * sstride + j]*dst[i * dstride + j];
     }
   }
-  return sum;
+  svar = (64*sum_s2-sum_s*sum_s + 2048)>>6;
+  dvar = (64*sum_d2-sum_d*sum_d + 2048)>>6;
+  return ((sum_d2 + sum_s2) - 2*sum_sd) * 0.5*(svar + dvar + 400) / (sqrt(10000 + (svar)*(double)(dvar)));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
