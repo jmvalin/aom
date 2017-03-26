@@ -117,8 +117,8 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
       dvar += tmp*tmp;
     }
   }
-  //return sum + (sqrt(dvar) - sqrt(svar))*(sqrt(dvar) - sqrt(svar));
-  return sum * (svar + dvar + 1000) / (1000 + sqrt(svar)*sqrt(dvar));
+  return sum + (sqrt(dvar) - sqrt(svar))*(sqrt(dvar) - sqrt(svar));
+  //return sum * (svar + dvar + 1000) / (1000 + sqrt(svar)*sqrt(dvar));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
