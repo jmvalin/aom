@@ -93,14 +93,32 @@ static void copy_sb16_16(uint16_t *dst, int dstride, const uint16_t *src,
 static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
                                      int sstride) {
   uint64_t sum = 0;
+  int32_t dmean = 0;
+  int32_t smean = 0;
+  uint64_t svar = 0;
+  uint64_t dvar = 0;
   int i, j;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       int e = dst[i * dstride + j] - src[i * sstride + j];
+      smean += src[i * sstride + j];
+      dmean += dst[i * dstride + j];
       sum += e * e;
     }
   }
-  return sum;
+  smean = (smean + 32)/64;
+  dmean = (dmean + 32)/64;
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) {
+      int32_t tmp;
+      tmp = src[i * sstride + j] - smean;
+      svar += tmp*tmp;
+      tmp = dst[i * dstride + j] - dmean;
+      dvar += tmp*tmp;
+    }
+  }
+  //return sum + (sqrt(dvar) - sqrt(svar))*(sqrt(dvar) - sqrt(svar));
+  return sum * (svar + dvar + 100) / (100 + sqrt(svar)*sqrt(dvar));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
