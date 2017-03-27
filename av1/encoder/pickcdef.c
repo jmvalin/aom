@@ -111,7 +111,7 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
   }
   svar = (64*sum_s2-sum_s*sum_s + 2048)>>12;
   dvar = (64*sum_d2-sum_d*sum_d + 2048)>>12;
-  return ((sum_d2 + sum_s2) - 2*sum_sd) * .5*(svar + dvar + 100) / (sqrt(svar*(double)dvar+2500));
+  return ((sum_d2 + sum_s2) - 2*sum_sd) * .5*(svar + dvar + 200) / (100 + sqrt(svar*(double)dvar));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
