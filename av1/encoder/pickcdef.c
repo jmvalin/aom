@@ -109,9 +109,9 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
       sum_sd += src[i * sstride + j]*dst[i * dstride + j];
     }
   }
-  svar = (64*sum_s2-sum_s*sum_s + 2048)>>6;
-  dvar = (64*sum_d2-sum_d*sum_d + 2048)>>6;
-  return ((sum_d2 + sum_s2) - 2*sum_sd) * 0.5*(svar + dvar + 400) / (sqrt(10000 + (svar)*(double)(dvar)));
+  svar = sum_s2-((sum_s*sum_s + 2048)>>6);
+  dvar = sum_d2-((sum_d*sum_d + 2048)>>6);
+  return (uint64_t)floor(.5 + (sum_d2 + sum_s2 - 2*sum_sd) * .5*(svar + dvar + 400) / (sqrt(10000 + (svar)*(double)(dvar))));
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
