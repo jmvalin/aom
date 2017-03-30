@@ -90,8 +90,8 @@ static void copy_sb16_16(uint16_t *dst, int dstride, const uint16_t *src,
   }
 }
 
-static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
-                                     int sstride) {
+static INLINE uint64_t dist_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
+                                     int sstride, int coeff_shift) {
   uint64_t svar = 0;
   uint64_t dvar = 0;
   uint64_t sum_s = 0;
@@ -111,7 +111,20 @@ static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
   }
   svar = sum_s2-((sum_s*sum_s + 2048)>>6);
   dvar = sum_d2-((sum_d*sum_d + 2048)>>6);
-  return (uint64_t)floor(.5 + (sum_d2 + sum_s2 - 2*sum_sd) * .5*(svar + dvar + 400) / (sqrt(10000 + (svar)*(double)(dvar))));
+  return (uint64_t)floor(.5 + (sum_d2 + sum_s2 - 2*sum_sd) * .5*(svar + dvar + (400<<2*coeff_shift)) / (sqrt((10000<<4*coeff_shift) + svar*(double)dvar)));
+}
+
+static INLINE uint64_t mse_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
+                                     int sstride) {
+  uint64_t sum = 0;
+  int i, j;
+  for (i = 0; i < 8; i++) {
+    for (j = 0; j < 8; j++) {
+      int e = dst[i * dstride + j] - src[i * sstride + j];
+      sum += e * e;
+    }
+  }
+  return sum;
 }
 
 static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
@@ -130,15 +143,20 @@ static INLINE uint64_t mse_4x4_16bit(uint16_t *dst, int dstride, uint16_t *src,
 /* Compute MSE only on the blocks we filtered. */
 uint64_t compute_dering_mse(uint16_t *dst, int dstride, uint16_t *src,
                             dering_list *dlist, int dering_count, int bsize,
-                            int coeff_shift) {
+                            int coeff_shift, int pli) {
   uint64_t sum = 0;
   int bi, bx, by;
   if (bsize == 3) {
     for (bi = 0; bi < dering_count; bi++) {
       by = dlist[bi].by;
       bx = dlist[bi].bx;
-      sum += mse_8x8_16bit(&dst[(by << 3) * dstride + (bx << 3)], dstride,
-                           &src[bi << 2 * bsize], 1 << bsize);
+      if (pli == 0) {
+        sum += dist_8x8_16bit(&dst[(by << 3) * dstride + (bx << 3)], dstride,
+                             &src[bi << 2 * bsize], 1 << bsize, coeff_shift);
+      } else { 
+        sum += mse_8x8_16bit(&dst[(by << 3) * dstride + (bx << 3)], dstride,
+                             &src[bi << 2 * bsize], 1 << bsize);
+      }
     }
   } else {
     for (bi = 0; bi < dering_count; bi++) {
@@ -287,7 +305,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                   (sbr * MAX_MIB_SIZE << bsize[pli]) * stride[pli] +
                   (sbc * MAX_MIB_SIZE << bsize[pli]),
               stride[pli], tmp_dst, dlist, dering_count, bsize[pli],
-              coeff_shift);
+              coeff_shift, pli);
           sb_index[sb_count] =
               MAX_MIB_SIZE * sbr * cm->mi_stride + MAX_MIB_SIZE * sbc;
         }
