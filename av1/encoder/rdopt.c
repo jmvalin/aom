@@ -533,7 +533,7 @@ static double od_compute_mse(od_coeff *x,
       od_filter_dering_direction_8x8(
                   out, bsize_w,
                   &in[(by * OD_FILT_BSTRIDE << 3) + (bx << 3)],
-                  od_adjust_thresh(4, var[by][bx]), dir[by][bx]);
+                  od_adjust_thresh(8, var[by][bx]), dir[by][bx]);
     }
   }
   sum1 = 0;
