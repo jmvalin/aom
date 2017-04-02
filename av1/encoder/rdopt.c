@@ -543,7 +543,8 @@ static double od_compute_mse(od_coeff *x,
       sum1 += tmp*tmp;
     }
   }
-  if (sum1 > sum0) sum0 = sum1;
+  //if (sum1 > sum0)
+    sum0 = sum1;
   return sum0;
 }
 
