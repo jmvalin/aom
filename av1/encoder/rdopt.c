@@ -516,7 +516,7 @@ static double od_compute_mse(od_coeff *x,
       sum0 += tmp*tmp;
     }
   }
-  //if (plane != 0)
+  if (plane != 0)
     return sum0;
   for (i=0;i<OD_DERING_INBUF_SIZE;i++) buf[i] = OD_DERING_VERY_LARGE;
   in = &buf[OD_FILT_VBORDER * OD_FILT_BSTRIDE + OD_FILT_HBORDER];
