@@ -63,6 +63,7 @@
 #endif  // CONFIG_PVQ
 #if CONFIG_PVQ || CONFIG_DAALA_DIST
 #include "av1/common/pvq.h"
+#include "av1/common/od_dering.h"
 #endif  // CONFIG_PVQ || CONFIG_DAALA_DIST
 #if CONFIG_DUAL_FILTER
 #define DUAL_FILTER_SET_SIZE (SWITCHABLE_FILTERS * SWITCHABLE_FILTERS)
@@ -458,165 +459,23 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
 };
 
 #if CONFIG_DAALA_DIST
-static int od_compute_var_4x4(od_coeff *x, int stride) {
-  int sum;
-  int s2;
-  int i;
-  sum = 0;
-  s2 = 0;
-  for (i = 0; i < 4; i++) {
-    int j;
-    for (j = 0; j < 4; j++) {
-      int t;
-
-      t = x[i * stride + j];
-      sum += t;
-      s2 += t * t;
-    }
-  }
-  // TODO(yushin) : Check wheter any changes are required for high bit depth.
-  return (s2 - (sum * sum >> 4)) >> 4;
-}
-
-/* OD_DIST_LP_MID controls the frequency weighting filter used for computing
-   the distortion. For a value X, the filter is [1 X 1]/(X + 2) and
-   is applied both horizontally and vertically. For X=5, the filter is
-   a good approximation for the OD_QM8_Q4_HVS quantization matrix. */
-#define OD_DIST_LP_MID (5)
-#define OD_DIST_LP_NORM (OD_DIST_LP_MID + 2)
-
-static double od_compute_dist_8x8(int qm, int use_activity_masking, od_coeff *x,
-                                  od_coeff *y, od_coeff *e_lp, int stride) {
-  double sum;
-  int min_var;
-  double mean_var;
-  double var_stat;
-  double activity;
-  double calibration;
+static double od_compute_mse(od_coeff *x,
+                              od_coeff *y, int bsize_w, int bsize_h) {
   int i;
   int j;
-  double vardist;
-
-  vardist = 0;
-  OD_ASSERT(qm != OD_FLAT_QM);
-  (void)qm;
-#if 1
-  min_var = INT_MAX;
-  mean_var = 0;
-  for (i = 0; i < 3; i++) {
-    for (j = 0; j < 3; j++) {
-      int varx;
-      int vary;
-      varx = od_compute_var_4x4(x + 2 * i * stride + 2 * j, stride);
-      vary = od_compute_var_4x4(y + 2 * i * stride + 2 * j, stride);
-      min_var = OD_MINI(min_var, varx);
-      mean_var += 1. / (1 + varx);
-      /* The cast to (double) is to avoid an overflow before the sqrt.*/
-      vardist += varx - 2 * sqrt(varx * (double)vary) + vary;
+  double sum0;
+  sum0 = 0;
+  for (i=0;i<bsize_h;i++) {
+    for (j=0;j<bsize_w;j++) {
+      int tmp = y[i * bsize_w + j] - x[i * bsize_w + j];
+      sum0 += tmp*tmp;
     }
   }
-  /* We use a different variance statistic depending on whether activity
-     masking is used, since the harmonic mean appeared slghtly worse with
-     masking off. The calibration constant just ensures that we preserve the
-     rate compared to activity=1. */
-  if (use_activity_masking) {
-    calibration = 1.95;
-    var_stat = 9. / mean_var;
-  } else {
-    calibration = 1.62;
-    var_stat = min_var;
-  }
-  /* 1.62 is a calibration constant, 0.25 is a noise floor and 1/6 is the
-     activity masking constant. */
-  activity = calibration * pow(.25 + var_stat, -1. / 6);
-#else
-  activity = 1;
-#endif  // 1
-  sum = 0;
-  for (i = 0; i < 8; i++) {
-    for (j = 0; j < 8; j++)
-      sum += e_lp[i * stride + j] * (double)e_lp[i * stride + j];
-  }
-  /* Normalize the filter to unit DC response. */
-  sum *= 1. / (OD_DIST_LP_NORM * OD_DIST_LP_NORM * OD_DIST_LP_NORM *
-               OD_DIST_LP_NORM);
-  return activity * activity * (sum + vardist);
-}
-
-// Note : Inputs x and y are in a pixel domain
-static double od_compute_dist(int qm, int activity_masking, od_coeff *x,
-                              od_coeff *y, int bsize_w, int bsize_h,
-                              int qindex) {
-  int i;
-  double sum;
-  sum = 0;
-
-  assert(bsize_w >= 8 && bsize_h >= 8);
-
-  if (qm == OD_FLAT_QM) {
-    for (i = 0; i < bsize_w * bsize_h; i++) {
-      double tmp;
-      tmp = x[i] - y[i];
-      sum += tmp * tmp;
-    }
-  } else {
-    int j;
-    DECLARE_ALIGNED(16, od_coeff, e[MAX_TX_SQUARE]);
-    DECLARE_ALIGNED(16, od_coeff, tmp[MAX_TX_SQUARE]);
-    DECLARE_ALIGNED(16, od_coeff, e_lp[MAX_TX_SQUARE]);
-    int mid = OD_DIST_LP_MID;
-    for (i = 0; i < bsize_h; i++) {
-      for (j = 0; j < bsize_w; j++) {
-        e[i * bsize_w + j] = x[i * bsize_w + j] - y[i * bsize_w + j];
-      }
-    }
-    for (i = 0; i < bsize_h; i++) {
-      tmp[i * bsize_w] = mid * e[i * bsize_w] + 2 * e[i * bsize_w + 1];
-      tmp[i * bsize_w + bsize_w - 1] =
-          mid * e[i * bsize_w + bsize_w - 1] + 2 * e[i * bsize_w + bsize_w - 2];
-      for (j = 1; j < bsize_w - 1; j++) {
-        tmp[i * bsize_w + j] = mid * e[i * bsize_w + j] +
-                               e[i * bsize_w + j - 1] + e[i * bsize_w + j + 1];
-      }
-    }
-    for (j = 0; j < bsize_w; j++) {
-      e_lp[j] = mid * tmp[j] + 2 * tmp[bsize_w + j];
-      e_lp[(bsize_h - 1) * bsize_w + j] =
-          mid * tmp[(bsize_h - 1) * bsize_w + j] +
-          2 * tmp[(bsize_h - 2) * bsize_w + j];
-    }
-    for (i = 1; i < bsize_h - 1; i++) {
-      for (j = 0; j < bsize_w; j++) {
-        e_lp[i * bsize_w + j] = mid * tmp[i * bsize_w + j] +
-                                tmp[(i - 1) * bsize_w + j] +
-                                tmp[(i + 1) * bsize_w + j];
-      }
-    }
-    for (i = 0; i < bsize_h; i += 8) {
-      for (j = 0; j < bsize_w; j += 8) {
-        sum += od_compute_dist_8x8(qm, activity_masking, &x[i * bsize_w + j],
-                                   &y[i * bsize_w + j], &e_lp[i * bsize_w + j],
-                                   bsize_w);
-      }
-    }
-    /* Scale according to linear regression against SSE, for 8x8 blocks. */
-    if (activity_masking) {
-      sum *= 2.2 + (1.7 - 2.2) * (qindex - 99) / (210 - 99) +
-             (qindex < 99 ? 2.5 * (qindex - 99) / 99 * (qindex - 99) / 99 : 0);
-    } else {
-      sum *= qindex >= 128
-                 ? 1.4 + (0.9 - 1.4) * (qindex - 128) / (209 - 128)
-                 : qindex <= 43
-                       ? 1.5 + (2.0 - 1.5) * (qindex - 43) / (16 - 43)
-                       : 1.5 + (1.4 - 1.5) * (qindex - 43) / (128 - 43);
-    }
-  }
-  return sum;
+  return sum0;
 }
 
 static int64_t av1_daala_dist(const uint8_t *src, int src_stride,
-                              const uint8_t *dst, int dst_stride, int tx_size,
-                              int qm, int use_activity_masking, int qindex) {
+                              const uint8_t *dst, int dst_stride, int tx_size) {
   int i, j;
   int64_t d;
   const BLOCK_SIZE tx_bsize = txsize_to_bsize[tx_size];
@@ -625,16 +484,13 @@ static int64_t av1_daala_dist(const uint8_t *src, int src_stride,
   DECLARE_ALIGNED(16, od_coeff, orig[MAX_TX_SQUARE]);
   DECLARE_ALIGNED(16, od_coeff, rec[MAX_TX_SQUARE]);
 
-  assert(qm == OD_HVS_QM);
-
   for (j = 0; j < bsh; j++)
     for (i = 0; i < bsw; i++) orig[j * bsw + i] = src[j * src_stride + i];
 
   for (j = 0; j < bsh; j++)
     for (i = 0; i < bsw; i++) rec[j * bsw + i] = dst[j * dst_stride + i];
 
-  d = (int64_t)od_compute_dist(qm, use_activity_masking, orig, rec, bsw, bsh,
-                               qindex);
+  d = (int64_t)od_compute_mse(orig, rec, bsw, bsh);
   return d;
 }
 #endif  // CONFIG_DAALA_DIST
@@ -1441,8 +1297,7 @@ static void dist_block(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_DAALA_DIST
     if (plane == 0) {
       if (bsw >= 8 && bsh >= 8)
-        tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size, qm,
-                             use_activity_masking, x->qindex);
+        tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size);
       else
         tmp = 0;
     } else
@@ -1497,8 +1352,7 @@ static void dist_block(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 #if CONFIG_DAALA_DIST
       if (plane == 0) {
         if (bsw >= 8 && bsh >= 8)
-          tmp = av1_daala_dist(src, src_stride, recon, MAX_TX_SIZE, tx_size, qm,
-                               use_activity_masking, x->qindex);
+          tmp = av1_daala_dist(src, src_stride, recon, MAX_TX_SIZE, tx_size);
         else
           tmp = 0;
       } else
@@ -1592,8 +1446,7 @@ static void block_rd_txfm(int plane, int block, int blk_row, int blk_col,
               pred8[j * bsw + i] = pred[j * diff_stride + i];
 
           this_rd_stats.sse =
-              av1_daala_dist(src, src_stride, pred8, bsw, tx_size, qm,
-                             use_activity_masking, x->qindex);
+              av1_daala_dist(src, src_stride, pred8, bsw, tx_size);
         } else {
           this_rd_stats.sse = 0;
         }
@@ -1619,8 +1472,7 @@ static void block_rd_txfm(int plane, int block, int blk_row, int blk_col,
         const int bsh = block_size_high[tx_bsize];
 
         if (bsw >= 8 && bsh >= 8)
-          tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size, qm,
-                               use_activity_masking, x->qindex);
+          tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size);
         else
           tmp = 0;
       } else
@@ -1739,13 +1591,11 @@ static void block_8x8_rd_txfm_daala_dist(int plane, int block, int blk_row,
         pred8[j * tx_blk_size + i] = pred[j * diff_stride + i];
 
     this_rd_stats.sse =
-        av1_daala_dist(src, src_stride, pred8, tx_blk_size, tx_size, qm,
-                       use_activity_masking, qindex);
+        av1_daala_dist(src, src_stride, pred8, tx_blk_size, tx_size);
 
     this_rd_stats.sse = this_rd_stats.sse * 16;
 
-    tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size, qm,
-                         use_activity_masking, qindex);
+    tmp = av1_daala_dist(src, src_stride, dst, dst_stride, tx_size);
 
     this_rd_stats.dist = (int64_t)tmp * 16;
   }
@@ -3302,8 +3152,7 @@ static int64_t rd_pick_intra_sub_8x8_y_mode(const AV1_COMP *const cpi,
     use_activity_masking = mb->daala_enc.use_activity_masking;
 #endif  // CONFIG_PVQ
     // Daala-defined distortion computed for the block of 8x8 pixels
-    total_distortion = av1_daala_dist(src, src_stride, dst, dst_stride, TX_8X8,
-                                      qm, use_activity_masking, mb->qindex)
+    total_distortion = av1_daala_dist(src, src_stride, dst, dst_stride, TX_8X8)
                        << 4;
   }
 #endif  // CONFIG_DAALA_DIST
@@ -6810,12 +6659,10 @@ static int64_t rd_pick_inter_best_sub8x8_mode(
 
     // Daala-defined distortion computed for 1) predicted pixels and
     // 2) decoded pixels of the block of 8x8 pixels
-    bsi->sse = av1_daala_dist(src, src_stride, pred, 8, TX_8X8, qm,
-                              use_activity_masking, x->qindex)
+    bsi->sse = av1_daala_dist(src, src_stride, pred, 8, TX_8X8)
                << 4;
 
-    bsi->d = av1_daala_dist(src, src_stride, pd->dst.buf, dst_stride, TX_8X8,
-                            qm, use_activity_masking, x->qindex)
+    bsi->d = av1_daala_dist(src, src_stride, pd->dst.buf, dst_stride, TX_8X8)
              << 4;
   }
 #endif  // CONFIG_DAALA_DIST
