@@ -74,7 +74,7 @@ static uint64_t search_one_dual(int *lev0, int *lev1, int nb_strengths,
     /* Find best mse among already selected options. */
     for (gi = 0; gi < nb_strengths; gi++) {
       uint64_t curr = mse[0][i][lev0[gi]];
-      curr += CHROMA_CONST*(mse[1][i][lev1[gi]] + mse[2][i][lev1[gi]]);
+      curr += mse[1][i][lev1[gi]];
       if (curr < best_mse) {
         best_mse = curr;
       }
@@ -85,7 +85,7 @@ static uint64_t search_one_dual(int *lev0, int *lev1, int nb_strengths,
       for (k = 0; k < TOTAL_STRENGTHS; k++) {
         uint64_t best = best_mse;
         uint64_t curr = mse[0][i][j];
-        curr += CHROMA_CONST*(mse[1][i][k] + mse[2][i][k]);
+        curr += mse[1][i][k];
         if (curr < best) best = curr;
         tot_mse[j][k] += best;
       }
@@ -273,7 +273,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   int nhsb = (cm->mi_cols + MAX_MIB_SIZE - 1) / MAX_MIB_SIZE;
   int *sb_index = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
   int *selected_strength = aom_malloc(nvsb * nhsb * sizeof(*sb_index));
-  uint64_t(*mse[3])[TOTAL_STRENGTHS];
+  uint64_t(*mse[2])[TOTAL_STRENGTHS];
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
   int nb_strengths;
@@ -292,6 +292,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   lambda = .12 * quantizer * quantizer / 256.;
 
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
+  mse[0] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
+  mse[1] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
   for (pli = 0; pli < nplanes; pli++) {
     uint8_t *ref_buffer;
     int ref_stride;
@@ -309,7 +311,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
         ref_stride = ref->uv_stride;
         break;
     }
-    mse[pli] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
     src[pli] = aom_memalign(
         32, sizeof(*src) * cm->mi_rows * cm->mi_cols * MI_SIZE * MI_SIZE);
     ref_coeff[pli] = aom_memalign(
@@ -361,6 +362,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           inbuf[i] = OD_DERING_VERY_LARGE;
         for (gi = 0; gi < TOTAL_STRENGTHS; gi++) {
           int threshold;
+          uint64_t curr_mse;
           int clpf_strength;
           threshold = gi / CLPF_STRENGTHS;
           if (pli > 0 && !chroma_dering) threshold = 0;
@@ -386,12 +388,17 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
                     dering_count, threshold,
                     clpf_strength + (clpf_strength == 3), clpf_damping,
                     coeff_shift, clpf_strength != 0, 1);
-          mse[pli][sb_count][gi] = compute_dering_dist(
+          curr_mse = compute_dering_dist(
               ref_coeff[pli] +
                   (sbr * MAX_MIB_SIZE << mi_high_l2[pli]) * stride[pli] +
                   (sbc * MAX_MIB_SIZE << mi_wide_l2[pli]),
               stride[pli], tmp_dst, dlist, dering_count, bsize[pli],
               coeff_shift, pli);
+          if (pli > 0) curr_mse *= CHROMA_CONST;
+          if (pli < 2)
+            mse[pli][sb_count][gi] = curr_mse;
+          else
+            mse[1][sb_count][gi] += curr_mse;
           sb_index[sb_count] =
               MAX_MIB_SIZE * sbr * cm->mi_stride + MAX_MIB_SIZE * sbc;
         }
@@ -431,7 +438,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     best_gi = 0;
     for (gi = 0; gi < cm->nb_cdef_strengths; gi++) {
       uint64_t curr = mse[0][i][cm->cdef_strengths[gi]];
-      curr += CHROMA_CONST*(mse[1][i][cm->cdef_uv_strengths[gi]] + mse[2][i][cm->cdef_uv_strengths[gi]]);
+      curr += mse[1][i][cm->cdef_uv_strengths[gi]];
       if (curr < best_mse) {
         best_gi = gi;
         best_mse = curr;
@@ -467,10 +474,11 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     for (str = 0; str < nb_strengths; str++) selected_strength[str] = 0;
   }
 #endif
+  aom_free(mse[0]);
+  aom_free(mse[1]);
   for (pli = 0; pli < nplanes; pli++) {
     aom_free(src[pli]);
     aom_free(ref_coeff[pli]);
-    aom_free(mse[pli]);
   }
   aom_free(sb_index);
   aom_free(selected_strength);
