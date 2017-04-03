@@ -112,6 +112,9 @@ int od_dir_find8_c(const uint16_t *img, int stride, int32_t *var,
   return best_dir;
 }
 
+# define OD_DIV_POW2_RE(x, shift) \
+  (((x) + (((1 << (shift)) + ((x) >> (shift) & 1) - 1) >> 1)) >> (shift))
+
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
                                       const uint16_t *in, int threshold,
@@ -137,7 +140,7 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
         if (abs(p0) < threshold) sum += taps[k] * p0;
         if (abs(p1) < threshold) sum += taps[k] * p1;
       }
-      sum = (sum + 8) >> 4;
+      sum = OD_DIV_POW2_RE(sum, 4);
       yy = xx + sum;
       y[i * ystride + j] = yy;
     }
@@ -169,7 +172,7 @@ void od_filter_dering_direction_4x4_c(uint16_t *y, int ystride,
         if (abs(p0) < threshold) sum += taps[k] * p0;
         if (abs(p1) < threshold) sum += taps[k] * p1;
       }
-      sum = (sum + 8) >> 4;
+      sum = OD_DIV_POW2_RE(sum, 4);
       yy = xx + sum;
       y[i * ystride + j] = yy;
     }
@@ -296,7 +299,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
 
   int threshold = (pli ? level_table_uv : level_table)[level] << coeff_shift;
   od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES] = {
-    od_filter_dering_direction_4x4, od_filter_dering_direction_8x8
+    od_filter_dering_direction_4x4_c, od_filter_dering_direction_8x8_c
   };
   bsize = OD_DERING_SIZE_LOG2 - xdec;
   if (!skip_dering) {
