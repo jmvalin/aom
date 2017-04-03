@@ -56,7 +56,7 @@ static uint64_t search_one(int *lev, int nb_strengths,
   return best_tot_mse;
 }
 
-#define CHROMA_CONST 2
+#define CHROMA_CONST 0
 
 /* Search for the best strength to add as an option, knowing we
    already selected nb_strengths options. */
