@@ -56,6 +56,56 @@ static uint64_t search_one(int *lev, int nb_strengths,
   return best_tot_mse;
 }
 
+#define CHROMA_CONST 2
+
+/* Search for the best strength to add as an option, knowing we
+   already selected nb_strengths options. */
+static uint64_t search_one_dual(int *lev0, int *lev1, int nb_strengths,
+                           uint64_t (**mse)[TOTAL_STRENGTHS], int sb_count) {
+  uint64_t tot_mse[TOTAL_STRENGTHS][TOTAL_STRENGTHS];
+  int i, j;
+  uint64_t best_tot_mse = (uint64_t)1 << 63;
+  int best_id0 = 0;
+  int best_id1 = 0;
+  memset(tot_mse, 0, sizeof(tot_mse));
+  for (i = 0; i < sb_count; i++) {
+    int gi;
+    uint64_t best_mse = (uint64_t)1 << 63;
+    /* Find best mse among already selected options. */
+    for (gi = 0; gi < nb_strengths; gi++) {
+      uint64_t curr = mse[0][i][lev0[gi]];
+      curr += CHROMA_CONST*(mse[1][i][lev1[gi]] + mse[2][i][lev1[gi]]);
+      if (curr < best_mse) {
+        best_mse = curr;
+      }
+    }
+    /* Find best mse when adding each possible new option. */
+    for (j = 0; j < TOTAL_STRENGTHS; j++) {
+      int k;
+      for (k = 0; k < TOTAL_STRENGTHS; k++) {
+        uint64_t best = best_mse;
+        uint64_t curr = mse[0][i][j];
+        curr += CHROMA_CONST*(mse[1][i][k] + mse[2][i][k]);
+        if (curr < best) best = curr;
+        tot_mse[j][k] += best;
+      }
+    }
+  }
+  for (j = 0; j < TOTAL_STRENGTHS; j++) {
+    int k;
+    for (k = 0; k < TOTAL_STRENGTHS; k++) {
+      if (tot_mse[j][k] < best_tot_mse) {
+        best_tot_mse = tot_mse[j][k];
+        best_id0 = j;
+        best_id1 = k;
+      }
+    }
+  }
+  lev0[nb_strengths] = best_id0;
+  lev1[nb_strengths] = best_id1;
+  return best_tot_mse;
+}
+
 /* Search for the set of strengths that minimizes mse. */
 static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
                                       uint64_t mse[][TOTAL_STRENGTHS],
@@ -73,6 +123,31 @@ static uint64_t joint_strength_search(int *best_lev, int nb_strengths,
     int j;
     for (j = 0; j < nb_strengths - 1; j++) best_lev[j] = best_lev[j + 1];
     best_tot_mse = search_one(best_lev, nb_strengths - 1, mse, sb_count);
+  }
+  return best_tot_mse;
+}
+
+/* Search for the set of strengths that minimizes mse. */
+static uint64_t joint_strength_search_dual(int *best_lev0, int *best_lev1,
+                                           int nb_strengths,
+                                           uint64_t (**mse)[TOTAL_STRENGTHS],
+                                           int sb_count) {
+  uint64_t best_tot_mse;
+  int i;
+  best_tot_mse = (uint64_t)1 << 63;
+  /* Greedy search: add one strength options at a time. */
+  for (i = 0; i < nb_strengths; i++) {
+    best_tot_mse = search_one_dual(best_lev0, best_lev1, i, mse, sb_count);
+  }
+  /* Trying to refine the greedy search by reconsidering each
+     already-selected option. */
+  for (i = 0; i < 4 * nb_strengths; i++) {
+    int j;
+    for (j = 0; j < nb_strengths - 1; j++) {
+      best_lev0[j] = best_lev0[j + 1];
+      best_lev1[j] = best_lev1[j + 1];
+    }
+    best_tot_mse = search_one_dual(best_lev0, best_lev1, nb_strengths - 1, mse, sb_count);
   }
   return best_tot_mse;
 }
@@ -201,7 +276,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   uint64_t(*mse[3])[TOTAL_STRENGTHS];
   int clpf_damping = 3 + (cm->base_qindex >> 6);
   int i;
-  int best_lev[CDEF_MAX_STRENGTHS];
   int nb_strengths;
   int nb_strength_bits;
   int quantizer;
@@ -329,8 +403,12 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   nb_strength_bits = 0;
   /* Search for different number of signalling bits. */
   for (i = 0; i <= 3; i++) {
+    int j;
+    int best_lev0[CDEF_MAX_STRENGTHS];
+    int best_lev1[CDEF_MAX_STRENGTHS];
     nb_strengths = 1 << i;
-    tot_mse = joint_strength_search(best_lev, nb_strengths, mse[0], sb_count);
+    //tot_mse = joint_strength_search(best_lev, nb_strengths, mse[0], sb_count);
+    tot_mse = joint_strength_search_dual(best_lev0, best_lev1, nb_strengths, mse, sb_count);
     /* Count superblock signalling cost. */
     tot_mse += (uint64_t)(sb_count * lambda * i);
     /* Count header signalling cost. */
@@ -338,27 +416,31 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     if (tot_mse < best_tot_mse) {
       best_tot_mse = tot_mse;
       nb_strength_bits = i;
+      nb_strengths = 1 << nb_strength_bits;
+
+      cm->cdef_bits = nb_strength_bits;
+      cm->nb_cdef_strengths = nb_strengths;
+      for (j = 0; j < nb_strengths; j++) cm->cdef_strengths[j] = best_lev0[j];
+      for (j = 0; j < nb_strengths; j++) cm->cdef_uv_strengths[j] = best_lev1[j];
     }
   }
-  nb_strengths = 1 << nb_strength_bits;
-
-  cm->cdef_bits = nb_strength_bits;
-  cm->nb_cdef_strengths = nb_strengths;
-  for (i = 0; i < nb_strengths; i++) cm->cdef_strengths[i] = best_lev[i];
   for (i = 0; i < sb_count; i++) {
     int gi;
     int best_gi;
     uint64_t best_mse = (uint64_t)1 << 63;
     best_gi = 0;
     for (gi = 0; gi < cm->nb_cdef_strengths; gi++) {
-      if (mse[0][i][best_lev[gi]] < best_mse) {
+      uint64_t curr = mse[0][i][cm->cdef_strengths[gi]];
+      curr += CHROMA_CONST*(mse[1][i][cm->cdef_uv_strengths[gi]] + mse[2][i][cm->cdef_uv_strengths[gi]]);
+      if (curr < best_mse) {
         best_gi = gi;
-        best_mse = mse[0][i][best_lev[gi]];
+        best_mse = curr;
       }
     }
     selected_strength[i] = best_gi;
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
+#if 0
   int str;
   /* For each strength option we picked in luma, find the optimal chroma
      strength. */
@@ -384,6 +466,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   } else {
     for (str = 0; str < nb_strengths; str++) selected_strength[str] = 0;
   }
+#endif
   for (pli = 0; pli < nplanes; pli++) {
     aom_free(src[pli]);
     aom_free(ref_coeff[pli]);
