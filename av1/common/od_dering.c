@@ -336,7 +336,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], threshold,
-            dir[by][bx], 6 - (pli != AOM_PLANE_Y));
+            dir[by][bx], threshold == 0 ? 0 : get_msb(threshold) + 1);
       }
     }
   }
