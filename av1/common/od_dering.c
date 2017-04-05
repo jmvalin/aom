@@ -294,7 +294,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
     0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 19, 24, 29, 36, 44, 54, 63
   };
   static int clpf_strength_table[CLPF_STRENGTHS] = {
-    0, 1, 2, 3, 5, 8, 12
+    0, 1, 2, 3, 6, 10, 15
   };
   int threshold = (pli ? level_table_uv : level_table)[level] << coeff_shift;
   clpf_strength = clpf_strength_table[clpf_strength];
