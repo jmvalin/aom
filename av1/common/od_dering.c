@@ -288,13 +288,13 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
   // static int level_table_uv[DERING_STRENGTHS] = {0, 1, 2, 5, 8, 12, 18, 25};
   // For now, use 21 strengths and the same for luma and chroma.
   static int level_table[DERING_STRENGTHS] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+    0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 19, 24, 29, 36, 44, 54, 63
   };
   static int level_table_uv[DERING_STRENGTHS] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+    0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 19, 24, 29, 36, 44, 54, 63
   };
   static int clpf_strength_table[CLPF_STRENGTHS] = {
-    0, 1, 2, 3, 4, 7
+    0, 1, 2, 3, 4, 6, 9
   };
   int threshold = (pli ? level_table_uv : level_table)[level] << coeff_shift;
   clpf_strength = clpf_strength_table[clpf_strength];
