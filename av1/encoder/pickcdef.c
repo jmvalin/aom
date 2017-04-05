@@ -453,7 +453,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   for (i = 0; i < cm->nb_cdef_strengths; i++) {
     if (cm->cdef_strengths[i] > 4) cm->cdef_strengths[i] -= 4;
-    if ((cm->cdef_strengths[i]&0x3)) cm->cdef_strengths[i]--;
+    //if ((cm->cdef_strengths[i]&0x3)) cm->cdef_strengths[i]--;
   }
   aom_free(mse[0]);
   aom_free(mse[1]);
