@@ -323,10 +323,11 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
            to be a little bit more aggressive on pure horizontal/vertical
            since the ringing there tends to be directional, so it doesn't
            get removed by the directional filtering. */
+        int t = od_adjust_thresh(threshold, var[by][bx]);
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-            od_adjust_thresh(threshold, var[by][bx]), dir[by][bx], 6);
+            t, dir[by][bx], t == 0 ? 6 : AOMMAX(6, get_msb(t)));
       }
     } else {
       for (bi = 0; bi < dering_count; bi++) {
