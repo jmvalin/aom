@@ -281,20 +281,14 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
   int by;
   int bsize;
 
-  // TODO(stemidts): We might be good with fewer strengths and different
-  // strengths for chroma.  Perhaps reduce CDEF_STRENGTH_BITS to 5 and
-  // DERING_STRENGTHS to 8 and use the following tables:
-  // static int level_table[DERING_STRENGTHS] = {0, 1, 3, 7, 14, 24, 39, 63};
-  // static int level_table_uv[DERING_STRENGTHS] = {0, 1, 2, 5, 8, 12, 18, 25};
-  // For now, use 21 strengths and the same for luma and chroma.
   static int level_table[DERING_STRENGTHS] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 32
   };
   static int level_table_uv[DERING_STRENGTHS] = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 24, 28, 33, 39, 46, 54, 63
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17
   };
-
-  int threshold = (pli ? level_table_uv : level_table)[level] << coeff_shift;
+  int threshold = (pli ? level_table_uv : level_table)[(level + 1) >> 1] << coeff_shift;
+  int dering_damping = 4 + !pli + (level & 1) + coeff_shift;
   od_filter_dering_direction_func filter_dering_direction[OD_DERINGSIZES] = {
     od_filter_dering_direction_4x4, od_filter_dering_direction_8x8
   };
@@ -327,7 +321,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-            t, dir[by][bx], t == 0 ? 6 : AOMMAX(6, get_msb(t)));
+            t, dir[by][bx], t == 0 ? dering_damping : AOMMAX(6, get_msb(t)));
       }
     } else {
       for (bi = 0; bi < dering_count; bi++) {
@@ -336,7 +330,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)], threshold,
-            dir[by][bx], threshold == 0 ? 0 : get_msb(threshold) + 1);
+            dir[by][bx], dering_damping);
       }
     }
   }
