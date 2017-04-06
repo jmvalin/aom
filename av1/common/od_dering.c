@@ -327,7 +327,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-            t, dir[by][bx], t == 0 ? 0 : 1 + get_msb(t));
+            t, dir[by][bx], t == 0 ? 0 : get_msb(t));
       }
     } else {
       for (bi = 0; bi < dering_count; bi++) {
