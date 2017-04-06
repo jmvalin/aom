@@ -194,7 +194,7 @@ static INLINE int od_adjust_thresh(int threshold, int32_t var) {
   int v1;
   /* We use the variance of 8x8 blocks to adjust the threshold. */
   v1 = OD_MINI(32767, var >> 6);
-  return (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8;
+  return AOMMIN(63, (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8);
 }
 
 void copy_8x8_16bit_to_16bit_c(uint16_t *dst, int dstride, const uint16_t *src,
