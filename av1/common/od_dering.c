@@ -194,7 +194,7 @@ static INLINE int od_adjust_thresh(int threshold, int32_t var) {
   int v1;
   /* We use the variance of 8x8 blocks to adjust the threshold. */
   v1 = OD_MINI(32767, var >> 6);
-  return AOMMIN(63, (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8);
+  return (threshold * OD_THRESH_TABLE_Q8[OD_ILOG(v1)] + 128) >> 8;
 }
 
 void copy_8x8_16bit_to_16bit_c(uint16_t *dst, int dstride, const uint16_t *src,
@@ -323,10 +323,11 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
            to be a little bit more aggressive on pure horizontal/vertical
            since the ringing there tends to be directional, so it doesn't
            get removed by the directional filtering. */
+        int t = od_adjust_thresh(threshold, var[by][bx]);
         (filter_dering_direction[bsize - OD_LOG_BSIZE0])(
             &y[bi << 2 * bsize], 1 << bsize,
             &in[(by * OD_FILT_BSTRIDE << bsize) + (bx << bsize)],
-            od_adjust_thresh(threshold, var[by][bx]), dir[by][bx], 6);
+            t, dir[by][bx], t == 0 ? 6 : AOMMAX(6, get_msb(t)));
       }
     } else {
       for (bi = 0; bi < dering_count; bi++) {
