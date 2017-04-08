@@ -187,10 +187,11 @@ static INLINE uint64_t dist_8x8_16bit(uint16_t *dst, int dstride, uint16_t *src,
   /* Compute the variance -- the calculation cannot go negative. */
   svar = sum_s2 - ((sum_s * sum_s + 32) >> 6);
   dvar = sum_d2 - ((sum_d * sum_d + 32) >> 6);
-  return sum_d2 + sum_s2 - 2 * sum_sd;
+  double activity = 12*pow(100+svar, -.33333);
+  if (activity < .25) activity = .25;
   return (uint64_t)floor(
       .5 +
-      (sum_d2 + sum_s2 - 2 * sum_sd) * .5 *
+      activity*(sum_d2 + sum_s2 - 2 * sum_sd) * .5 *
           (svar + dvar + (400 << 2 * coeff_shift)) /
           (sqrt((20000 << 4 * coeff_shift) + svar * (double)dvar)));
 }
