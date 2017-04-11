@@ -377,7 +377,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       nhb = AOMMIN(MAX_MIB_SIZE, cm->mi_cols - MAX_MIB_SIZE * sbc);
       nvb = AOMMIN(MAX_MIB_SIZE, cm->mi_rows - MAX_MIB_SIZE * sbr);
       dering_count = sb_compute_dering_list(cm, sbr * MAX_MIB_SIZE,
-                                            sbc * MAX_MIB_SIZE, dlist);
+                                            sbc * MAX_MIB_SIZE, dlist, 1);
       cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                           MAX_MIB_SIZE * sbc]
           ->mbmi.cdef_strength = -1;
