@@ -41,7 +41,7 @@ int sb_all_skip(const AV1_COMMON *const cm, int mi_row, int mi_col) {
                  ->mbmi.skip;
     }
   }
-  return skip;
+  return skip && cm->mi_grid_visible[mi_row * cm->mi_stride + mi_col]->mbmi.sb_type == BLOCK_LARGEST;
 }
 
 static int is_8x8_block_skip(MODE_INFO **grid, int mi_row, int mi_col,
