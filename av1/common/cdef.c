@@ -75,7 +75,6 @@ int sb_compute_dering_list(const AV1_COMMON *const cm, int mi_row, int mi_col,
   const int c_step = mi_size_wide[BLOCK_8X8];
   const int r_shift = (r_step == 2);
   const int c_shift = (c_step == 2);
-  int all_skip = 1;
 
   assert(r_step == 1 || r_step == 2);
   assert(c_step == 1 || c_step == 2);
@@ -86,11 +85,10 @@ int sb_compute_dering_list(const AV1_COMMON *const cm, int mi_row, int mi_col,
       dlist[count].bx = c >> c_shift;
       dlist[count].skip =
           is_8x8_block_skip(grid, mi_row + r, mi_col + c, cm->mi_stride);
-      all_skip &= dlist[count].skip;
       count++;
     }
   }
-  return all_skip ? 0 : count;
+  return count;
 }
 
 void copy_rect8_8bit_to_16bit_c(uint16_t *dst, int dstride, const uint8_t *src,
