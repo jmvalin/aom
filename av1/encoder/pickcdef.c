@@ -381,7 +381,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
           ->mbmi.cdef_strength = -1;
       if (sb_all_skip(cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE)) continue;
       dering_count = sb_compute_dering_list(cm, sbr * MAX_MIB_SIZE,
-                                            sbc * MAX_MIB_SIZE, dlist);
+                                            sbc * MAX_MIB_SIZE, dlist, 1);
       for (pli = 0; pli < nplanes; pli++) {
         for (i = 0; i < OD_DERING_INBUF_SIZE; i++)
           inbuf[i] = OD_DERING_VERY_LARGE;
