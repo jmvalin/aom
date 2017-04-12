@@ -95,6 +95,7 @@ int sb_compute_dering_list(const AV1_COMMON *const cm, int mi_row, int mi_col,
       if (!is_8x8_block_skip(grid, mi_row + r, mi_col + c, cm->mi_stride)) {
         dlist[count].by = r >> r_shift;
         dlist[count].bx = c >> c_shift;
+        dlist[count].skip = 0;
         count++;
       }
     }
@@ -285,7 +286,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       if ((level == 0 && clpf_strength == 0 && uv_level == 0 &&
            uv_clpf_strength == 0) ||
           (dering_count = sb_compute_dering_list(
-               cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE, dlist, 1)) == 0) {
+               cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE, dlist, get_filter_skip(level) || get_filter_skip(uv_level))) == 0) {
         dering_left = 0;
         continue;
       }
