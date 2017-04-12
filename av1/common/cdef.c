@@ -286,7 +286,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       if ((level == 0 && clpf_strength == 0 && uv_level == 0 &&
            uv_clpf_strength == 0) ||
           (dering_count = sb_compute_dering_list(
-               cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE, dlist, get_filter_skip(level) || get_filter_skip(uv_level))) == 0) {
+               cm, sbr * MAX_MIB_SIZE, sbc * MAX_MIB_SIZE, dlist, 1)) == 0) {
         dering_left = 0;
         continue;
       }
