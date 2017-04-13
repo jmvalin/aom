@@ -309,7 +309,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       xd->plane[2].subsampling_x == xd->plane[2].subsampling_y;
   quantizer =
       av1_ac_quant(cm->base_qindex, 0, cm->bit_depth) >> (cm->bit_depth - 8);
-  lambda = .12 * quantizer * quantizer / 256.;
+  lambda = .06 * quantizer * quantizer / 256.;
 
   av1_setup_dst_planes(xd->plane, frame, 0, 0);
   mse[0] = aom_malloc(sizeof(**mse) * nvsb * nhsb);
@@ -446,7 +446,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     /* Count superblock signalling cost. */
     tot_mse += (uint64_t)(sb_count * lambda * i);
     /* Count header signalling cost. */
-    tot_mse += (uint64_t)(nb_strengths * lambda * CDEF_STRENGTH_BITS);
+    tot_mse += (uint64_t)(2* nb_strengths * lambda * CDEF_STRENGTH_BITS);
     if (tot_mse < best_tot_mse) {
       best_tot_mse = tot_mse;
       nb_strength_bits = i;
