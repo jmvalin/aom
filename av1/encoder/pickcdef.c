@@ -432,7 +432,7 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   nb_strength_bits = 0;
   /* Search for different number of signalling bits. */
-  for (i = 0; i <= 3; i++) {
+  for (i = 0; i <= CDEF_MAX_STRENGTHS_BITS; i++) {
     int j;
     int best_lev0[CDEF_MAX_STRENGTHS];
     int best_lev1[CDEF_MAX_STRENGTHS] = { 0 };

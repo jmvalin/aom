@@ -39,7 +39,10 @@
 extern "C" {
 #endif
 
-#define CDEF_MAX_STRENGTHS 16
+#define CDEF_MAX_STRENGTHS_BITS 4
+#define CDEF_MAX_STRENGTHS (1 << CDEF_MAX_STRENGTHS_BITS)
+/* Number of bits required to code the number of bits. */
+#define CDEF_MAX_STRENGTHS_BITS_BITS 3
 
 #define REF_FRAMES_LOG2 3
 #define REF_FRAMES (1 << REF_FRAMES_LOG2)
