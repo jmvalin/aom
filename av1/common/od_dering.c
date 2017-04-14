@@ -181,7 +181,7 @@ void od_filter_dering_direction_4x4_c(uint16_t *y, int ystride,
    round(256*min(3, max(.5, 1.08*(sqrt(2)*2.^([0:17]+8)/256/256).^.16))) */
 static const int16_t OD_THRESH_TABLE_Q8[13] = {
         0, 20, 40, 60, 80, 100,
-       120, 140, 160, 180, 200, 240, 256
+       128, 140, 160, 180, 200, 240, 256
 };
 
 /* Compute deringing filter threshold for an 8x8 block based on the
