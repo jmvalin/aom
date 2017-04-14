@@ -179,9 +179,9 @@ void od_filter_dering_direction_4x4_c(uint16_t *y, int ystride,
 /* This table approximates x^0.16 with the index being log2(x). It is clamped
    to [-.5, 3]. The table is computed as:
    round(256*min(3, max(.5, 1.08*(sqrt(2)*2.^([0:17]+8)/256/256).^.16))) */
-static const int16_t OD_THRESH_TABLE_Q8[13] = {
-        0, 20, 40, 60, 80, 100,
-       128, 140, 160, 180, 200, 240, 256
+static const int16_t OD_THRESH_TABLE_Q8[14] = {
+        0, 25, 50, 75, 100, 115,
+       128, 134, 150, 168, 188, 210, 234, 256
 };
 
 /* Compute deringing filter threshold for an 8x8 block based on the
@@ -193,7 +193,7 @@ static const int16_t OD_THRESH_TABLE_Q8[13] = {
 static INLINE int od_adjust_thresh(int threshold, int32_t var) {
   int v1;
   /* We use the variance of 8x8 blocks to adjust the threshold. */
-  v1 = var ? OD_MINI(12, 1 + get_msb(var)) : 0;
+  v1 = var ? OD_MINI(13, 1 + get_msb(var)) : 0;
   return (threshold * OD_THRESH_TABLE_Q8[v1] + 128) >> 8;
 }
 
