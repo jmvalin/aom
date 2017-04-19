@@ -329,6 +329,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
       ydec ? (xdec ? BLOCK_4X4 : BLOCK_8X4) : (xdec ? BLOCK_4X8 : BLOCK_8X8);
   bsizex = 3 - xdec;
   bsizey = 3 - ydec;
+  threshold = 0;
 
   if (!skip_dering) {
     if (pli == 0) {
