@@ -120,6 +120,7 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
   int j;
   int k;
   static const int taps[3] = { 7, 5, 3 };
+  static const int sh[3] = {0, 0, 1};
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       int16_t sum;
@@ -134,8 +135,8 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
              xx;
         p1 = in[i * OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]] -
              xx;
-        sum += taps[k] * constrain(p0, threshold, damping);
-        sum += taps[k] * constrain(p1, threshold, damping);
+        sum += taps[k] * constrain(p0, threshold>>sh[k], damping);
+        sum += taps[k] * constrain(p1, threshold>>sh[k], damping);
       }
       sum = (sum + 16) >> 5;
       yy = xx + sum;
