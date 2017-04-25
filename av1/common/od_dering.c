@@ -119,7 +119,7 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
   int i;
   int j;
   int k;
-  static const int taps[3] = { 5, 4, 3 };
+  static const int taps[3] = { 7, 5, 3 };
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       int16_t sum;
