@@ -121,7 +121,7 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
   int j;
   int k;
   static const int taps0[3] = { 6, 4, 2 };
-  static const int taps1[3] = { 5, 5, 5 };
+  static const int taps1[3] = { 4, 4, 4 };
   const int *taps = foo ? taps0 : taps1;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
