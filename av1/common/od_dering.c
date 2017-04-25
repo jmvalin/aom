@@ -112,6 +112,7 @@ int od_dir_find8_c(const uint16_t *img, int stride, int32_t *var,
   return best_dir;
 }
 
+int foo = 0;
 /* Smooth in the direction detected. */
 void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
                                       const uint16_t *in, int threshold,
@@ -119,8 +120,9 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
   int i;
   int j;
   int k;
-  static const int taps[3] = { 7, 5, 3 };
-  static const int sh[3] = {0, 0, 1};
+  static const int taps0[3] = { 6, 4, 2 };
+  static const int taps1[3] = { 5, 5, 5 };
+  const int *taps = foo ? taps0 : taps1;
   for (i = 0; i < 8; i++) {
     for (j = 0; j < 8; j++) {
       int16_t sum;
@@ -135,8 +137,8 @@ void od_filter_dering_direction_8x8_c(uint16_t *y, int ystride,
              xx;
         p1 = in[i * OD_FILT_BSTRIDE + j - OD_DIRECTION_OFFSETS_TABLE[dir][k]] -
              xx;
-        sum += taps[k] * constrain(p0, threshold>>sh[k], damping);
-        sum += taps[k] * constrain(p1, threshold>>sh[k], damping);
+        sum += taps[k] * constrain(p0, threshold, damping);
+        sum += taps[k] * constrain(p1, threshold, damping);
       }
       sum = (sum + 16) >> 5;
       yy = xx + sum;
@@ -320,7 +322,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
   int threshold = (level >> 1) << coeff_shift;
   int filter_skip = get_filter_skip(level);
   if (level == 1) threshold = 31 << coeff_shift;
-
+  foo = (level>>1)&1;
   od_filter_dering_direction_func filter_dering_direction[] = {
     od_filter_dering_direction_4x4, od_filter_dering_direction_8x8_c
   };
