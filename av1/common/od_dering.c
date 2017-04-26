@@ -154,7 +154,9 @@ void od_filter_dering_direction_4x4_c(uint16_t *y, int ystride,
   int i;
   int j;
   int k;
-  static const int taps[2] = { 4, 1 };
+  static const int taps0[2] = { 8, 2 };
+  static const int taps1[2] = { 6, 6 };
+  const int *taps = foo ? taps0 : taps1;
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
       int16_t sum;
@@ -172,7 +174,7 @@ void od_filter_dering_direction_4x4_c(uint16_t *y, int ystride,
         sum += taps[k] * constrain(p0, threshold, damping);
         sum += taps[k] * constrain(p1, threshold, damping);
       }
-      sum = (sum + 8) >> 4;
+      sum = (sum + 16) >> 5;
       yy = xx + sum;
       y[i * ystride + j] = yy;
     }
@@ -324,7 +326,7 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
   if (level == 1) threshold = 31 << coeff_shift;
   foo = (level>>1)&1;
   od_filter_dering_direction_func filter_dering_direction[] = {
-    od_filter_dering_direction_4x4, od_filter_dering_direction_8x8_c
+    od_filter_dering_direction_4x4_c, od_filter_dering_direction_8x8_c
   };
   clpf_damping += coeff_shift - (pli != AOM_PLANE_Y);
   dering_damping += coeff_shift - (pli != AOM_PLANE_Y);
