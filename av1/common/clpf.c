@@ -17,17 +17,17 @@
 
 int av1_clpf_sample(int X, int A, int B, int C, int D, int E, int F, int G,
                     int H, int s, unsigned int dmp) {
-  int delta = 2 * constrain(A - X, s, dmp) + 5 * constrain(B - X, s, dmp) +
-              2 * constrain(C - X, s, dmp) + 5 * constrain(D - X, s, dmp) +
-              5 * constrain(E - X, s, dmp) + 2 * constrain(F - X, s, dmp) +
-              5 * constrain(G - X, s, dmp) + 2 * constrain(H - X, s, dmp);
+  int delta = 3 * constrain(A - X, s, dmp) + 5 * constrain(B - X, s, dmp) +
+              3 * constrain(C - X, s, dmp) + 5 * constrain(D - X, s, dmp) +
+              5 * constrain(E - X, s, dmp) + 3 * constrain(F - X, s, dmp) +
+              5 * constrain(G - X, s, dmp) + 3 * constrain(H - X, s, dmp);
   return (16 + delta - (delta < 0)) >> 5;
 }
 
 int av1_clpf_hsample(int X, int A, int B, int C, int D, int s,
                      unsigned int dmp) {
-  int delta = 2 * constrain(A - X, s, dmp) + 5 * constrain(B - X, s, dmp) +
-              5 * constrain(C - X, s, dmp) + 2 * constrain(D - X, s, dmp);
+  int delta = 3 * constrain(A - X, s, dmp) + 5 * constrain(B - X, s, dmp) +
+              5 * constrain(C - X, s, dmp) + 3 * constrain(D - X, s, dmp);
   return (8 + delta - (delta < 0)) >> 4;
 }
 
