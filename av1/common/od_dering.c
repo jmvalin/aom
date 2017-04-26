@@ -379,8 +379,8 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
       if (!filter_skip && dlist[bi].skip) continue;
       if (!dst || hbd) {
         // 16 bit destination if high bitdepth or 8 bit destination not given
-        (!threshold || (dir[by][bx] < 4 && dir[by][bx]) ? aom_clpf_block_hbd
-                                                        : aom_clpf_hblock_hbd)(
+        (!threshold || (dir[by][bx] < 4 && dir[by][bx]) ? aom_clpf_block_hbd_c
+                                                        : aom_clpf_hblock_hbd_c)(
             dst ? (uint16_t *)dst + py * dstride + px
                 : &y[bi << (bsizex + bsizey)],
             in + py * OD_FILT_BSTRIDE + px, dst && hbd ? dstride : 1 << bsizex,
@@ -388,8 +388,8 @@ void od_dering(uint8_t *dst, int dstride, uint16_t *y, uint16_t *in, int xdec,
             clpf_strength << coeff_shift, clpf_damping);
       } else {
         // Do clpf and write the result to an 8 bit destination
-        (!threshold || (dir[by][bx] < 4 && dir[by][bx]) ? aom_clpf_block
-                                                        : aom_clpf_hblock)(
+        (!threshold || (dir[by][bx] < 4 && dir[by][bx]) ? aom_clpf_block_c
+                                                        : aom_clpf_hblock_c)(
             dst + py * dstride + px, in + py * OD_FILT_BSTRIDE + px, dstride,
             OD_FILT_BSTRIDE, 1 << bsizex, 1 << bsizey,
             clpf_strength << coeff_shift, clpf_damping);
