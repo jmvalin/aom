@@ -251,12 +251,12 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
           cm->mi_grid_visible[MAX_MIB_SIZE * sbr * cm->mi_stride +
                               MAX_MIB_SIZE * sbc]
               ->mbmi.cdef_strength;
-      level = cm->cdef_strengths[mbmi_cdef_strength] / CLPF_STRENGTHS;
-      clpf_strength = cm->cdef_strengths[mbmi_cdef_strength] % CLPF_STRENGTHS;
+      level = cm->cdef.strengths[mbmi_cdef_strength] / CLPF_STRENGTHS;
+      clpf_strength = cm->cdef.strengths[mbmi_cdef_strength] % CLPF_STRENGTHS;
       clpf_strength += clpf_strength == 3;
-      uv_level = cm->cdef_uv_strengths[mbmi_cdef_strength] / CLPF_STRENGTHS;
+      uv_level = cm->cdef.uv_strengths[mbmi_cdef_strength] / CLPF_STRENGTHS;
       uv_clpf_strength =
-          cm->cdef_uv_strengths[mbmi_cdef_strength] % CLPF_STRENGTHS;
+          cm->cdef.uv_strengths[mbmi_cdef_strength] % CLPF_STRENGTHS;
       uv_clpf_strength += uv_clpf_strength == 3;
       if ((level == 0 && clpf_strength == 0 && uv_level == 0 &&
            uv_clpf_strength == 0) ||
@@ -272,8 +272,8 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         uint16_t dst[MAX_SB_SIZE * MAX_SB_SIZE];
         int coffset;
         int rend, cend;
-        int clpf_damping = cm->cdef_clpf_damping;
-        int dering_damping = cm->cdef_dering_damping;
+        int clpf_damping = cm->cdef.clpf_damping;
+        int dering_damping = cm->cdef.dering_damping;
         int hsize = nhb << mi_wide_l2[pli];
         int vsize = nvb << mi_high_l2[pli];
 

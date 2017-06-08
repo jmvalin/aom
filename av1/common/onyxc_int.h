@@ -38,11 +38,12 @@
 #if CONFIG_CFL
 #include "av1/common/cfl.h"
 #endif
+#if CONFIG_CDEF
+#include "cdef_config.h"
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define CDEF_MAX_STRENGTHS 16
 
 #define REF_FRAMES_LOG2 3
 #define REF_FRAMES (1 << REF_FRAMES_LOG2)
@@ -403,12 +404,7 @@ typedef struct AV1Common {
   int mib_size;        // Size of the superblock in units of MI blocks
   int mib_size_log2;   // Log 2 of above.
 #if CONFIG_CDEF
-  int cdef_dering_damping;
-  int cdef_clpf_damping;
-  int nb_cdef_strengths;
-  int cdef_strengths[CDEF_MAX_STRENGTHS];
-  int cdef_uv_strengths[CDEF_MAX_STRENGTHS];
-  int cdef_bits;
+  CDEFConfig cdef;
 #endif
 
 #if CONFIG_DELTA_Q

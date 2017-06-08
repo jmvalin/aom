@@ -11,17 +11,13 @@
 #ifndef AV1_COMMON_DERING_H_
 #define AV1_COMMON_DERING_H_
 
-#define CDEF_STRENGTH_BITS 7
-
-#define DERING_STRENGTHS 32
-#define CLPF_STRENGTHS 4
-
 #include "./aom_config.h"
 #include "aom/aom_integer.h"
 #include "aom_ports/mem.h"
 #include "av1/common/od_dering.h"
 #include "av1/common/onyxc_int.h"
 #include "./od_dering.h"
+#include "cdef_config.h"
 
 static INLINE int sign(int i) { return i < 0 ? -1 : 1; }
 

@@ -452,23 +452,23 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
       best_tot_mse = tot_mse;
       nb_strength_bits = i;
       for (j = 0; j < 1 << nb_strength_bits; j++) {
-        cm->cdef_strengths[j] = best_lev0[j];
-        cm->cdef_uv_strengths[j] = best_lev1[j];
+        cm->cdef.strengths[j] = best_lev0[j];
+        cm->cdef.uv_strengths[j] = best_lev1[j];
       }
     }
   }
   nb_strengths = 1 << nb_strength_bits;
 
-  cm->cdef_bits = nb_strength_bits;
-  cm->nb_cdef_strengths = nb_strengths;
+  cm->cdef.bits = nb_strength_bits;
+  cm->cdef.nb_strengths = nb_strengths;
   for (i = 0; i < sb_count; i++) {
     int gi;
     int best_gi;
     uint64_t best_mse = (uint64_t)1 << 63;
     best_gi = 0;
-    for (gi = 0; gi < cm->nb_cdef_strengths; gi++) {
-      uint64_t curr = mse[0][i][cm->cdef_strengths[gi]];
-      if (nplanes >= 3) curr += mse[1][i][cm->cdef_uv_strengths[gi]];
+    for (gi = 0; gi < cm->cdef.nb_strengths; gi++) {
+      uint64_t curr = mse[0][i][cm->cdef.strengths[gi]];
+      if (nplanes >= 3) curr += mse[1][i][cm->cdef.uv_strengths[gi]];
       if (curr < best_mse) {
         best_gi = gi;
         best_mse = curr;
@@ -477,8 +477,8 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     selected_strength[i] = best_gi;
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
   }
-  cm->cdef_dering_damping = dering_damping;
-  cm->cdef_clpf_damping = clpf_damping;
+  cm->cdef.dering_damping = dering_damping;
+  cm->cdef.clpf_damping = clpf_damping;
   aom_free(mse[0]);
   aom_free(mse[1]);
   for (pli = 0; pli < nplanes; pli++) {
