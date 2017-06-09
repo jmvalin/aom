@@ -461,6 +461,20 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
 
   cm->cdef.bits = nb_strength_bits;
   cm->cdef.nb_strengths = nb_strengths;
+  cm->cdef.dering_damping = dering_damping;
+  cm->cdef.clpf_damping = clpf_damping;
+  if (1) {
+    static int foo=0;
+    if (foo) {
+      CDEFConfig tmp;
+      tmp = cm->cdef;
+      cm->cdef = cm->delayed_cdef;
+      cm->delayed_cdef = tmp;
+    } else {
+      cm->delayed_cdef = cm->cdef;
+    }
+    foo=1;
+  }
   for (i = 0; i < sb_count; i++) {
     int gi;
     int best_gi;
@@ -476,20 +490,6 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
     }
     selected_strength[i] = best_gi;
     cm->mi_grid_visible[sb_index[i]]->mbmi.cdef_strength = best_gi;
-  }
-  cm->cdef.dering_damping = dering_damping;
-  cm->cdef.clpf_damping = clpf_damping;
-  if (1) {
-    static int foo=0;
-    if (foo) {
-      CDEFConfig tmp;
-      tmp = cm->cdef;
-      cm->cdef = cm->delayed_cdef;
-      cm->delayed_cdef = tmp;
-    } else {
-      cm->delayed_cdef = cm->cdef;
-    }
-    foo=1;
   }
   aom_free(mse[0]);
   aom_free(mse[1]);
