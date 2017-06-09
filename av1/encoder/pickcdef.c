@@ -479,6 +479,18 @@ void av1_cdef_search(YV12_BUFFER_CONFIG *frame, const YV12_BUFFER_CONFIG *ref,
   }
   cm->cdef.dering_damping = dering_damping;
   cm->cdef.clpf_damping = clpf_damping;
+  if (1) {
+    static int foo=0;
+    if (foo) {
+      CDEFConfig tmp;
+      tmp = cm->cdef;
+      cm->cdef = cm->delayed_cdef;
+      cm->delayed_cdef = tmp;
+    } else {
+      cm->delayed_cdef = cm->cdef;
+    }
+    foo=1;
+  }
   aom_free(mse[0]);
   aom_free(mse[1]);
   for (pli = 0; pli < nplanes; pli++) {

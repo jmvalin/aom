@@ -405,6 +405,7 @@ typedef struct AV1Common {
   int mib_size_log2;   // Log 2 of above.
 #if CONFIG_CDEF
   CDEFConfig cdef;
+  CDEFConfig delayed_cdef;
 #endif
 
 #if CONFIG_DELTA_Q
